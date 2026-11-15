@@ -32,6 +32,9 @@ type response struct {
 	LocalPort       int    `json:"localPort,omitempty"`
 	Sharing         bool   `json:"sharing,omitempty"`
 	Joining         bool   `json:"joining,omitempty"`
+	Mode            string `json:"mode,omitempty"`
+	LatencyMs       int64  `json:"latencyMs,omitempty"`
+	Relay           string `json:"relay,omitempty"`
 	Error           string `json:"error,omitempty"`
 }
 
@@ -102,6 +105,12 @@ func (s *sessions) handle(req request) response {
 			return response{Error: err}
 		}
 		return response{OK: true, LocalPort: port}
+	case "probe":
+		mode, latency, relay, err := s.probe()
+		if err != "" {
+			return response{Error: err}
+		}
+		return response{OK: true, Mode: mode, LatencyMs: latency, Relay: relay}
 	case "stopShare":
 		s.stopShare()
 		return response{OK: true}

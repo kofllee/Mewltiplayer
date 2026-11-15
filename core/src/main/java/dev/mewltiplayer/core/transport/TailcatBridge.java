@@ -7,6 +7,14 @@ public interface TailcatBridge extends AutoCloseable {
 
     CompletionStage<String> share(int minecraftPort);
 
+    CompletionStage<Void> stopJoin();
+
+    CompletionStage<Void> stopShare();
+
+    CompletionStage<BridgeStatus> status();
+
+    CompletionStage<NetworkStatus> probe();
+
     @Override
     void close();
 }

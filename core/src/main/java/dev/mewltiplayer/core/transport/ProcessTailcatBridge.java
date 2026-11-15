@@ -1,0 +1,139 @@
+package dev.mewltiplayer.core.transport;
+
+import com.google.gson.JsonObject;
+
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+
+public final class ProcessTailcatBridge implements TailcatBridge {
+    private final TailcatProcess process;
+    private final String derpMapUrl;
+    private final int regionId;
+
+    public ProcessTailcatBridge(Path helperExecutable) throws IOException {
+        this(helperExecutable, "", 0);
+    }
+
+    public ProcessTailcatBridge(Path helperExecutable, String derpMapUrl, int regionId) throws IOException {
+        Objects.requireNonNull(helperExecutable, "helperExecutable");
+        if (!Files.isRegularFile(helperExecutable)) {
+            throw new IOException("Tailcat helper not found: " + helperExecutable);
+        }
+        if (regionId < 0 || !validUrl(derpMapUrl)) {
+            throw new IllegalArgumentException("Invalid Tailcat network settings");
+        }
+        this.derpMapUrl = derpMapUrl == null ? "" : derpMapUrl;
+        this.regionId = regionId;
+        process = new TailcatProcess(Collections.singletonList(helperExecutable.toAbsolutePath().toString()));
+        try {
+            JsonObject hello = process.request("hello", null, 10).get(12, TimeUnit.SECONDS);
+            if (!hello.has("helperVersion")) {
+                throw new IOException("Unrecognized Tailcat helper");
+            }
+        } catch (InterruptedException error) {
+            process.close();
+            Thread.currentThread().interrupt();
+            throw new IOException("Tailcat helper startup interrupted", error);
+        } catch (ExecutionException | TimeoutException error) {
+            process.close();
+            throw new IOException("Tailcat helper failed to initialize", error);
+        } catch (IOException error) {
+            process.close();
+            throw error;
+        }
+    }
+
+    @Override
+    public CompletionStage<String> share(int minecraftPort) {
+        if (minecraftPort < 1 || minecraftPort > 65535) {
+            throw new IllegalArgumentException("Invalid Minecraft port");
+        }
+        JsonObject args = networkArguments();
+        args.addProperty("port", minecraftPort);
+        return process.request("share", args, 45).thenApply(reply -> reply.get("code").getAsString());
+    }
+
+    @Override
+    public CompletionStage<ConnectionInfo> join(String inviteCode) {
+        if (inviteCode == null || !inviteCode.trim().startsWith("tc") || inviteCode.trim().length() > 8192) {
+            throw new IllegalArgumentException("Invalid Tailcat invitation");
+        }
+        JsonObject args = networkArguments();
+        args.addProperty("code", inviteCode.trim());
+        return process.request("join", args, 45).thenApply(reply ->
+                new ConnectionInfo(new InetSocketAddress("127.0.0.1", reply.get("localPort").getAsInt()), ConnectionMode.CONNECTED));
+    }
+
+    @Override
+    public CompletionStage<Void> stopJoin() {
+        return process.request("stopJoin", null, 10).thenApply(reply -> null);
+    }
+
+    @Override
+    public CompletionStage<Void> stopShare() {
+        return process.request("stopShare", null, 10).thenApply(reply -> null);
+    }
+
+    @Override
+    public CompletionStage<BridgeStatus> status() {
+        return process.request("status", null, 10).thenApply(reply ->
+                new BridgeStatus(
+                        reply.has("sharing") && reply.get("sharing").getAsBoolean(),
+                        reply.has("joining") && reply.get("joining").getAsBoolean(),
+                        reply.has("localPort") ? reply.get("localPort").getAsInt() : 0));
+    }
+
+    @Override
+    public CompletionStage<NetworkStatus> probe() {
+        return process.request("probe", null, 10).thenApply(reply -> {
+            String path = reply.get("mode").getAsString();
+            ConnectionMode mode = ConnectionMode.CONNECTED;
+            if ("direct".equals(path)) {
+                mode = ConnectionMode.DIRECT;
+            } else if ("relay".equals(path)) {
+                mode = ConnectionMode.RELAY;
+            }
+            long latencyMs = reply.has("latencyMs") ? reply.get("latencyMs").getAsLong() : 0;
+            String relay = reply.has("relay") ? reply.get("relay").getAsString() : "";
+            return new NetworkStatus(mode, latencyMs, relay);
+        });
+    }
+
+    @Override
+    public void close() {
+        process.close();
+    }
+
+    private JsonObject networkArguments() {
+        JsonObject args = new JsonObject();
+        if (!derpMapUrl.isEmpty()) {
+            args.addProperty("derpMapUrl", derpMapUrl);
+        }
+        if (regionId > 0) {
+            args.addProperty("regionId", regionId);
+        }
+        return args;
+    }
+
+    private static boolean validUrl(String input) {
+        if (input == null || input.isEmpty()) {
+            return true;
+        }
+        try {
+            URI uri = URI.create(input);
+            return ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme()))
+                    && uri.getHost() != null && uri.getUserInfo() == null;
+        } catch (IllegalArgumentException error) {
+            return false;
+        }
+    }
+}

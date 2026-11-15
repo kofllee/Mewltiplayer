@@ -172,6 +172,26 @@ func (j *joinedServer) accept(ctx context.Context) {
 	}
 }
 
+func (s *sessions) probe() (string, int64, string, string) {
+	if s.join == nil {
+		return "", 0, "", "not_joined"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	result, err := s.join.client.DiscoPing(ctx)
+	if err != nil {
+		return "", 0, "", "probe_failed"
+	}
+
+	mode := "connected"
+	if result.Endpoint != "" {
+		mode = "direct"
+	} else if result.DERPRegionID > 0 {
+		mode = "relay"
+	}
+	return mode, int64(result.LatencySeconds * 1000), result.DERPRegionCode, ""
+}
+
 func (s *sessions) stopShare() {
 	if s.share == nil {
 		return

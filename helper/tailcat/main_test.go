@@ -69,6 +69,7 @@ func TestValidation(t *testing.T) {
 		{request{ID: "a", Type: "ping", ProtocolVersion: 2}, "unsupported_protocol_version"},
 		{request{Type: "ping", ProtocolVersion: 1}, "missing_id"},
 		{request{ID: "a", Type: "bad", ProtocolVersion: 1}, "unknown_command"},
+		{request{ID: "a", Type: "probe", ProtocolVersion: 1}, "not_joined"},
 		{request{ID: "a", Type: "share", ProtocolVersion: 1, Port: 65536}, "invalid_port"},
 		{request{ID: "a", Type: "share", ProtocolVersion: 1, Port: 25565, DERPMapURL: "file:///etc/passwd"}, "invalid_network_settings"},
 	} {
@@ -130,6 +131,10 @@ func TestTCPBridge(t *testing.T) {
 	}
 	if string(result) != "hello" {
 		t.Fatalf("unexpected response: %q", result)
+	}
+	mode, latency, _, errCode := guest.probe()
+	if errCode != "" || (mode != "direct" && mode != "relay" && mode != "connected") || latency < 0 {
+		t.Fatalf("unexpected network probe: mode=%s latency=%d error=%s", mode, latency, errCode)
 	}
 	guest.stopJoin()
 	host.stopShare()
