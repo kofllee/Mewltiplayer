@@ -2,6 +2,9 @@ package dev.mewltiplayer.core.transport;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
+import java.nio.file.StandardOpenOption;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -14,7 +17,7 @@ public final class BundledHelper {
     private BundledHelper() {
     }
 
-    public static Path extract(Path configDir) throws IOException {
+    public static synchronized Path extract(Path configDir) throws IOException {
         String platform = platform();
         String fileName = platform.startsWith("windows") ? "mewltiplayer-helper.exe" : "mewltiplayer-helper";
         String resourceDir = "/mewltiplayer/native/" + platform + "/";
@@ -32,6 +35,9 @@ public final class BundledHelper {
         Path directory = configDir.resolve("bin").resolve(platform).resolve(hash.substring(0, 16));
         Path executable = directory.resolve(fileName);
         Files.createDirectories(directory);
+        try (FileChannel channel = FileChannel.open(directory.resolve("extract.lock"),
+                StandardOpenOption.CREATE, StandardOpenOption.WRITE);
+             FileLock lock = channel.lock()) {
         if (Files.isRegularFile(executable) && hash.equals(sha256(executable))) {
             executable.toFile().setExecutable(true, true);
             return executable;
@@ -58,6 +64,7 @@ public final class BundledHelper {
             return executable;
         } finally {
             Files.deleteIfExists(temporary);
+        }
         }
     }
 
