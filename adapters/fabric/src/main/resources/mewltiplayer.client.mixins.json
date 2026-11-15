@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.mewltiplayer.fabric.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MewPauseMixin",
+    "MewDirectConnectMixin",
+    "MewSavedServerMixin",
+    "MewConnectMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

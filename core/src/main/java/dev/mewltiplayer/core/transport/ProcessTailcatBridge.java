@@ -54,11 +54,19 @@ public final class ProcessTailcatBridge implements TailcatBridge {
 
     @Override
     public CompletionStage<String> share(int minecraftPort) {
+        return share(minecraftPort, null);
+    }
+
+    @Override
+    public CompletionStage<String> share(int minecraftPort, Path identityFile) {
         if (minecraftPort < 1 || minecraftPort > 65535) {
             throw new IllegalArgumentException("Invalid Minecraft port");
         }
         JsonObject args = networkArguments();
         args.addProperty("port", minecraftPort);
+        if (identityFile != null) {
+            args.addProperty("identityFile", identityFile.toAbsolutePath().toString());
+        }
         return process.request("share", args, 45).thenApply(reply -> reply.get("code").getAsString());
     }
 
@@ -89,7 +97,8 @@ public final class ProcessTailcatBridge implements TailcatBridge {
                 new BridgeStatus(
                         reply.has("sharing") && reply.get("sharing").getAsBoolean(),
                         reply.has("joining") && reply.get("joining").getAsBoolean(),
-                        reply.has("localPort") ? reply.get("localPort").getAsInt() : 0));
+                        reply.has("localPort") ? reply.get("localPort").getAsInt() : 0,
+                        reply.has("connections") ? reply.get("connections").getAsInt() : 0));
     }
 
     @Override

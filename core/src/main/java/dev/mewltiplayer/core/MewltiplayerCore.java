@@ -7,6 +7,6 @@ public final class MewltiplayerCore {
     }
 
     public static void initialize() {
-        System.out.println("[Mewltiplayer] Core initialized (Tailcat transport not connected yet).");
+        System.out.println("[Mewltiplayer] Core initialized.");
     }
 }

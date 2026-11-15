@@ -25,6 +25,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 final class TailcatProcess implements AutoCloseable {
     private final Process process;
+    private final Thread shutdownHook;
     private final BufferedWriter input;
     private final Map<String, CompletableFuture<JsonObject>> pending = new ConcurrentHashMap<>();
     private final ScheduledExecutorService timers = Executors.newSingleThreadScheduledExecutor(task -> daemon(task, "tailcat-timeout"));
@@ -34,6 +35,8 @@ final class TailcatProcess implements AutoCloseable {
 
     TailcatProcess(List<String> command) throws IOException {
         process = new ProcessBuilder(command).start();
+        shutdownHook = new Thread(process::destroyForcibly, "mewltiplayer-helper-shutdown");
+        Runtime.getRuntime().addShutdownHook(shutdownHook);
         input = new BufferedWriter(new OutputStreamWriter(process.getOutputStream(), StandardCharsets.UTF_8));
         readers.execute(this::readResponses);
         readers.execute(this::drainErrors);
@@ -158,6 +161,10 @@ final class TailcatProcess implements AutoCloseable {
             failPending(new IOException("Tailcat helper stopped"));
             timers.shutdownNow();
             readers.shutdownNow();
+            try {
+                Runtime.getRuntime().removeShutdownHook(shutdownHook);
+            } catch (IllegalStateException ignored) {
+            }
         }
     }
 
