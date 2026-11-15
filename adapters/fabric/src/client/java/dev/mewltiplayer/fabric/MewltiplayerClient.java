@@ -2,7 +2,7 @@ package dev.mewltiplayer.fabric;
 
 import dev.mewltiplayer.core.MewWorldSettings;
 import dev.mewltiplayer.core.MewSettings;
-import dev.mewltiplayer.core.MewInvitations;
+import dev.mewltiplayer.core.MewShareCodes;
 import dev.mewltiplayer.core.transport.ConnectionMode;
 import dev.mewltiplayer.core.transport.NetworkStatus;
 import java.nio.file.Path;
@@ -29,7 +29,7 @@ public final class MewltiplayerClient implements ClientModInitializer {
             MewClientCompat.openPendingSettings();
             ++ticks;
             MewRuntime runtime = MewRuntime.INSTANCE;
-            if (ticks % 4 == 0 && runtime.sharing() && runtime.invite() == null) {
+            if (ticks % 2 == 0 && runtime.sharing() && runtime.shareCode() == null) {
                 MewClientCompat.updateSharing();
             }
             if (ticks % 20 != 0) return;
@@ -65,20 +65,20 @@ public final class MewltiplayerClient implements ClientModInitializer {
                 startingNotified = true;
             }
             Path world = MewClientCompat.worldDirectory();
-            String mode = runtime.settings().invitationMode;
-            Path identity = MewInvitations.identity(mode, world, runtime.configDirectory());
-            runtime.share(MewClientCompat.worldPort(), identity).whenComplete((invite, error) -> {
+            String mode = runtime.settings().shareCodeMode;
+            Path identity = MewShareCodes.identity(mode, world, runtime.configDirectory());
+            runtime.share(MewClientCompat.worldPort(), identity).whenComplete((shareCode, error) -> {
                 MewClientCompat.execute(() -> {
                     MewClientCompat.endSharing();
                     if (error == null) {
                         failureNotified = false;
-                        if (runtime.onlineSharingEnabled() && invite.equals(runtime.invite())) {
+                        if (runtime.onlineSharingEnabled() && shareCode.equals(runtime.shareCode())) {
                             try {
-                                MewInvitations.record(mode, world, runtime.configDirectory(), invite);
+                                MewShareCodes.record(mode, world, runtime.configDirectory(), shareCode);
                             } catch (java.io.IOException exception) {
                                 MewClientCompat.notice("mewltiplayer.settings.saveFailed");
                             }
-                            MewClientCompat.publishedInvite(invite);
+                            MewClientCompat.publishedShareCode(shareCode);
                         }
                     } else {
                         startingNotified = false;
@@ -94,9 +94,11 @@ public final class MewltiplayerClient implements ClientModInitializer {
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (MewRuntime.INSTANCE.joining()) {
-                lastRoute = null;
-                MewClientCompat.message("mewltiplayer.chat.joined", true);
                 MewRuntime.INSTANCE.poll();
+                NetworkStatus network = MewRuntime.INSTANCE.network();
+                lastRoute = network != null && (network.mode() == ConnectionMode.DIRECT
+                        || network.mode() == ConnectionMode.RELAY) ? network.mode() : null;
+                MewClientControl.route(network);
             }
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {

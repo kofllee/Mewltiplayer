@@ -1,6 +1,6 @@
 package dev.mewltiplayer.fabric.mixin;
 
-import dev.mewltiplayer.core.transport.InviteCode;
+import dev.mewltiplayer.core.transport.ShareCode;
 import net.minecraft.client.gui.screen.multiplayer.DirectConnectScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
@@ -20,13 +20,13 @@ public abstract class MewDirectConnectMixin {
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/widget/TextFieldWidget;setMaxLength(I)V"),
             index = 0)
-    private int mew$allowFullInviteCode(int vanillaLimit) {
+    private int mew$allowFullShareCode(int vanillaLimit) {
         return 8192;
     }
 
     @Inject(method = "onAddressFieldChanged", at = @At("TAIL"))
     private void mew$update(CallbackInfo ci) {
-        if (InviteCode.looksLikeTailcatCode(addressField.getText())) {
+        if (ShareCode.looksLikeTailcatCode(addressField.getText())) {
             selectServerButton.active = true;
         }
     }

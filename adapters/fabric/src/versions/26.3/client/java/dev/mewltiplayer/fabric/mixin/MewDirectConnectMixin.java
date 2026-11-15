@@ -1,6 +1,6 @@
 package dev.mewltiplayer.fabric.mixin;
 
-import dev.mewltiplayer.core.transport.InviteCode;
+import dev.mewltiplayer.core.transport.ShareCode;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.DirectJoinServerScreen;
@@ -20,13 +20,13 @@ public abstract class MewDirectConnectMixin {
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/components/EditBox;setMaxLength(I)V"),
             index = 0)
-    private int mew$allowFullInviteCode(int vanillaLimit) {
+    private int mew$allowFullShareCode(int vanillaLimit) {
         return 8192;
     }
 
     @Inject(method = "updateSelectButtonStatus", at = @At("TAIL"))
     private void mew$update(CallbackInfo ci) {
-        if (InviteCode.looksLikeTailcatCode(ipEdit.getValue())) {
+        if (ShareCode.looksLikeTailcatCode(ipEdit.getValue())) {
             selectButton.active = true;
         }
     }

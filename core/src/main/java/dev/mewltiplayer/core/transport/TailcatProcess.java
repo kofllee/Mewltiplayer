@@ -124,7 +124,7 @@ final class TailcatProcess implements AutoCloseable {
         try (InputStream errors = process.getErrorStream()) {
             byte[] buffer = new byte[4096];
             while (errors.read(buffer) != -1) {
-                // Never forward network logs or invitation secrets to Minecraft logs.
+                // Never forward network logs or share code secrets to Minecraft logs.
             }
         } catch (IOException ignored) {
         }

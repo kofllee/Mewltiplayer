@@ -1,7 +1,7 @@
 package dev.mewltiplayer.fabric;
 
 import dev.mewltiplayer.core.DerpRegions;
-import dev.mewltiplayer.core.MewInvitations;
+import dev.mewltiplayer.core.MewShareCodes;
 import dev.mewltiplayer.core.MewSettings;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -22,14 +22,14 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 public final class MewSettingsScreen extends Screen {
-    private static final Identifier CAT_FONT = Identifier.of("mewltiplayer", "chat_cat");
+    private static final Identifier CAT_FONT = Identifier.of("mewltiplayer", "settings_cat");
     private final Screen parent;
     private final MewSettings initial;
     private final MewSettings draft;
-    private boolean invitationTab = true;
+    private boolean shareCodeTab = true;
     private boolean tabsLive;
     private boolean regionExpanded;
-    private GridScreenTab invitationsTab;
+    private GridScreenTab shareCodesTab;
     private List<DerpRegions.Region> regions = new ArrayList<>();
     private String loadedSource = "";
     private String error = "";
@@ -56,7 +56,7 @@ public final class MewSettingsScreen extends Screen {
         tabsLive = false;
         int x = width / 2 - 150;
         TabManager manager = new TabManager(w -> {}, w -> {});
-        invitationsTab = new GridScreenTab(label("tab.invites")) {
+        shareCodesTab = new GridScreenTab(label("tab.codes")) {
             @Override
             public void refreshGrid(ScreenRect area) {
                 super.refreshGrid(area);
@@ -71,49 +71,49 @@ public final class MewSettingsScreen extends Screen {
             }
         };
         TabNavigationWidget tabs = TabNavigationWidget.builder(manager, width)
-                .tabs(invitationsTab, other).build();
+                .tabs(shareCodesTab, other).build();
         tabs.init();
         addDrawableChild(tabs);
         manager.setTabArea(new ScreenRect(0, 24, width, Math.max(20, height - 56)));
-        manager.setCurrentTab(invitationTab ? invitationsTab : other, false);
+        manager.setCurrentTab(shareCodeTab ? shareCodesTab : other, false);
         tabsLive = true;
-        ButtonWidget docs = addDrawableChild(ButtonWidget.builder(Text.literal("?"), w ->
+        ButtonWidget docs = addDrawableChild(ButtonWidget.builder(Text.empty(), w ->
                 net.minecraft.client.gui.screen.ConfirmLinkScreen.open(
                         this, "https://github.com/tailscale/tailcat/blob/main/README.md"))
-                .dimensions(width - 26, height - 27, 20, 20).build());
+                .dimensions(x - 26, height - 27, 20, 20).build());
         docs.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("docs_tooltip")));
-        if (invitationTab) renderInvites(x);
+        if (shareCodeTab) renderShareCodes(x);
         else renderDerp(x);
         int footerY = height - 27;
-        addDrawableChild(ButtonWidget.builder(label("save"), w -> save()).dimensions(x, footerY, 146, 20).build());
-        addDrawableChild(ButtonWidget.builder(Text.translatable("gui.back"), w -> close())
+        ButtonWidget save = addDrawableChild(ButtonWidget.builder(label("save"), w -> save()).dimensions(x, footerY, 146, 20).build());
+        ButtonWidget back = addDrawableChild(ButtonWidget.builder(Text.translatable("gui.back"), w -> close())
                 .dimensions(x + 154, footerY, 146, 20).build());
-        if (regionExpanded && !invitationTab) addRegionList(x);
+        if (regionExpanded && !shareCodeTab) addRegionList(x);
     }
 
-    private void switchPage(boolean invite) {
+    private void switchPage(boolean shareCode) {
         captureInput();
-        invitationTab = invite;
+        shareCodeTab = shareCode;
         regionExpanded = false;
         error = "";
         notice = "";
         clearAndInit();
     }
 
-    private void renderInvites(int x) {
-        ButtonWidget invitationModeButton = addDrawableChild(ButtonWidget.builder(label("invite_mode." + draft.invitationMode), w -> {
-            draft.invitationMode = MewSettings.NEW.equals(draft.invitationMode) ? MewSettings.WORLD
-                    : MewSettings.WORLD.equals(draft.invitationMode) ? MewSettings.GLOBAL : MewSettings.NEW;
+    private void renderShareCodes(int x) {
+        ButtonWidget shareCodeModeButton = addDrawableChild(ButtonWidget.builder(label("share_code_mode." + draft.shareCodeMode), w -> {
+            draft.shareCodeMode = MewSettings.NEW.equals(draft.shareCodeMode) ? MewSettings.WORLD
+                    : MewSettings.WORLD.equals(draft.shareCodeMode) ? MewSettings.GLOBAL : MewSettings.NEW;
             confirm = "";
             notice = "";
             clearAndInit();
         }).dimensions(x, 78, 300, 20).build());
-        invitationModeButton.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("invite_help." + draft.invitationMode)));
+        shareCodeModeButton.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("share_code_help." + draft.shareCodeMode)));
 
-        String code = invitationPreview();
+        String code = shareCodePreview();
         TextFieldWidget preview = new TextFieldWidget(textRenderer, x, 127, 222, 20, label("code"));
         preview.setMaxLength(8192);
-        preview.setText(code == null ? (MewSettings.WORLD.equals(draft.invitationMode) && world() == null
+        preview.setText(code == null ? (MewSettings.WORLD.equals(draft.shareCodeMode) && world() == null
                 ? label("code_world_required").getString() : label("code_none").getString()) : code);
         preview.setEditable(false);
         addDrawableChild(preview);
@@ -124,10 +124,12 @@ public final class MewSettingsScreen extends Screen {
 
         ButtonWidget reset = addDrawableChild(ButtonWidget.builder(label("reset"), w -> resetSelected())
                 .dimensions(x, 159, 146, 20).build());
-        reset.active = !MewSettings.NEW.equals(draft.invitationMode)
-                && MewInvitations.identity(draft.invitationMode, world(), MewRuntime.INSTANCE.configDirectory()) != null;
-        addDrawableChild(ButtonWidget.builder(label("reset_all"), w -> resetAll())
+        reset.active = !MewSettings.NEW.equals(draft.shareCodeMode)
+                && MewShareCodes.identity(draft.shareCodeMode, world(), MewRuntime.INSTANCE.configDirectory()) != null;
+        reset.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("tip.reset")));
+        ButtonWidget resetAll = addDrawableChild(ButtonWidget.builder(label("reset_all"), w -> resetAll())
                 .dimensions(x + 154, 159, 146, 20).build());
+        resetAll.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("tip.reset_all")));
     }
 
     private void renderDerp(int x) {
@@ -144,6 +146,7 @@ public final class MewSettingsScreen extends Screen {
             clearAndInit();
         }).dimensions(x, 78, 146, 20).build());
         mode.active = !regionExpanded;
+        mode.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("tip.derp_mode")));
         if (regionExpanded) {
             // Region list occupies the content area; no fields sit behind it.
         } else if (MewSettings.URL.equals(draft.derpMode)) {
@@ -181,6 +184,7 @@ public final class MewSettingsScreen extends Screen {
                 .dimensions(x + 154, 78, 146, 20).build());
         choose.active = !pending && (regionExpanded || !MewSettings.MAP.equals(draft.derpMode)
                 || !draft.derpMapJson.isEmpty());
+        choose.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("tip.region")));
     }
 
     private String currentRegion() {
@@ -301,11 +305,11 @@ public final class MewSettingsScreen extends Screen {
         return MewClientCompat.worldDirectory();
     }
 
-    private String invitationPreview() {
+    private String shareCodePreview() {
         MewRuntime runtime = MewRuntime.INSTANCE;
-        if (runtime.isSharingMode(draft.invitationMode, world()) && runtime.invite() != null)
-            return runtime.invite();
-        return MewInvitations.preview(draft.invitationMode, world(), runtime.configDirectory());
+        if (runtime.isSharingMode(draft.shareCodeMode, world()) && runtime.shareCode() != null)
+            return runtime.shareCode();
+        return MewShareCodes.preview(draft.shareCodeMode, world(), runtime.configDirectory());
     }
 
     private void resetSelected() {
@@ -316,7 +320,7 @@ public final class MewSettingsScreen extends Screen {
         }
         confirm = "";
         notice = label("loading").getString();
-        MewRuntime.INSTANCE.resetInvitation(draft.invitationMode, world(), null, false)
+        MewRuntime.INSTANCE.resetShareCode(draft.shareCodeMode, world(), null, false)
                 .whenComplete((ignored, failure) -> MinecraftClient.getInstance().execute(() -> {
                     if (failure == null) {
                         notice = label("reset_done").getString();
@@ -337,7 +341,7 @@ public final class MewSettingsScreen extends Screen {
         }
         confirm = "";
         notice = label("loading").getString();
-        MewRuntime.INSTANCE.resetInvitation(draft.invitationMode, world(),
+        MewRuntime.INSTANCE.resetShareCode(draft.shareCodeMode, world(),
                 MinecraftClient.getInstance().runDirectory.toPath().resolve("saves"), true)
                 .whenComplete((ignored, failure) -> MinecraftClient.getInstance().execute(() -> {
                     if (failure == null) {
@@ -369,8 +373,8 @@ public final class MewSettingsScreen extends Screen {
                     || !initial.activeMapUrl().equals(draft.activeMapUrl())
                     || !initial.activeMapJson().equals(draft.activeMapJson());
             MewRuntime runtime = MewRuntime.INSTANCE;
-            boolean hasSavedCode = MewInvitations.preview(MewSettings.WORLD, world(), runtime.configDirectory()) != null
-                    || MewInvitations.preview(MewSettings.GLOBAL, world(), runtime.configDirectory()) != null;
+            boolean hasSavedCode = MewShareCodes.preview(MewSettings.WORLD, world(), runtime.configDirectory()) != null
+                    || MewShareCodes.preview(MewSettings.GLOBAL, world(), runtime.configDirectory()) != null;
             if (networkChanged && hasSavedCode && !confirmDerpChange) {
                 confirmDerpChange = true;
                 error = "";
@@ -398,15 +402,16 @@ public final class MewSettingsScreen extends Screen {
     public void render(DrawContext graphics, int mouseX, int mouseY, float delta) {
         renderBackground(graphics, mouseX, mouseY, delta);
         super.render(graphics, mouseX, mouseY, delta);
+        graphics.drawItem(net.minecraft.item.Items.KNOWLEDGE_BOOK.getDefaultStack(), width / 2 - 174, height - 25);
         int x = width / 2 - 150;
         graphics.drawCenteredTextWithShadow(textRenderer,Text.empty()
                 .append(Text.literal("\uE000").styled(style -> style.withFont(CAT_FONT)))
                 .append(Text.literal("  Mewltiplayer")), width / 2, 36, 0xffffffff);
-        if (regionExpanded && !invitationTab) {
+        if (regionExpanded && !shareCodeTab) {
             graphics.drawTextWithShadow(textRenderer, label("region_picker_title"), x + 2, 111, 0xffaaaaaa);
         } else {
-            if (invitationTab) {
-                graphics.drawTextWithShadow(textRenderer, label("invite_label"), x + 2, 64, 0xffaaaaaa);
+            if (shareCodeTab) {
+                graphics.drawTextWithShadow(textRenderer, label("share_code_label"), x + 2, 64, 0xffaaaaaa);
                 graphics.drawTextWithShadow(textRenderer, label("code"), x + 2, 112, 0xffaaaaaa);
             } else {
                 graphics.drawTextWithShadow(textRenderer, label("derp_label"), x + 2, 64, 0xffaaaaaa);

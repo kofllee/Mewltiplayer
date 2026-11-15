@@ -11,7 +11,7 @@ public final class MewCommands {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> dispatcher.register(
                 literal("mew")
                         .executes(context -> { MewClientControl.status(); return 1; })
-                        .then(literal("invite").requires(source -> MewClientCompat.worldDirectory() != null).executes(context -> { MewClientControl.invite(); return 1; }))
+                        .then(literal("code").requires(source -> MewClientCompat.worldDirectory() != null).executes(context -> { MewClientControl.shareCode(); return 1; }))
                         .then(literal("status").executes(context -> { MewClientControl.status(); return 1; }))
                         .then(literal("start").requires(source -> MewClientCompat.worldDirectory() != null).executes(context -> { MewClientControl.start(); return 1; }))
                         .then(literal("stop").requires(source -> MewClientCompat.worldDirectory() != null).executes(context -> { MewClientControl.stop(); return 1; }))

@@ -4,7 +4,7 @@ import java.nio.file.Path;
 import java.util.concurrent.CompletionStage;
 
 public interface TailcatBridge extends AutoCloseable {
-    CompletionStage<ConnectionInfo> join(String inviteCode);
+    CompletionStage<ConnectionInfo> join(String shareCode);
 
     CompletionStage<String> share(int minecraftPort);
 

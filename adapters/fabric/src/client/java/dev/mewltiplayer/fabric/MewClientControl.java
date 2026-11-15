@@ -14,8 +14,8 @@ public final class MewClientControl {
             return;
         }
         MewRuntime runtime = MewRuntime.INSTANCE;
-        if (runtime.invite() != null) {
-            invite();
+        if (runtime.sharing() || runtime.onlineSharingEnabled()) {
+            MewClientCompat.message("mewltiplayer.chat.alreadyRunning", false);
             return;
         }
         runtime.setOnlineSharingEnabled(true);
@@ -29,29 +29,29 @@ public final class MewClientControl {
             MewClientCompat.endSharing();
             MewClientCompat.message("mewltiplayer.chat.stopped", false);
         } else {
-            MewClientCompat.message("mewltiplayer.chat.idle", false);
+            MewClientCompat.message("mewltiplayer.chat.alreadyStopped", false);
         }
     }
 
-    public static void invite() {
-        String code = MewRuntime.INSTANCE.invite();
+    public static void shareCode() {
+        String code = MewRuntime.INSTANCE.shareCode();
         if (code == null) {
-            MewClientCompat.notice("mewltiplayer.chat.noInvite");
+            MewClientCompat.notice("mewltiplayer.chat.noShareCode");
         } else {
-            MewClientCompat.copyInvite(code);
+            MewClientCompat.copyShareCode(code);
         }
     }
 
     public static void reset() {
         MewRuntime runtime = MewRuntime.INSTANCE;
         if (!MewClientCompat.published() || !runtime.onlineSharingEnabled()) {
-            MewClientCompat.notice("mewltiplayer.chat.noInvite");
+            MewClientCompat.notice("mewltiplayer.chat.noShareCode");
             return;
         }
         runtime.stopShare();
         MewClientCompat.endSharing();
         Path world = MewClientCompat.worldDirectory();
-        runtime.resetInvitation(runtime.settings().invitationMode, world, null, false)
+        runtime.resetShareCode(runtime.settings().shareCodeMode, world, null, false)
                 .whenComplete((ignored, error) -> MewClientCompat.execute(() -> {
                     if (error == null) {
                         MewClientCompat.message("mewltiplayer.chat.replacing", false);
@@ -66,12 +66,11 @@ public final class MewClientControl {
         MewRuntime runtime = MewRuntime.INSTANCE;
         runtime.poll();
         BridgeStatus bridge = runtime.status();
-        if (runtime.invite() != null) {
+        if (runtime.shareCode() != null) {
             MewClientCompat.message("mewltiplayer.chat.hostStatus", true, bridge.connections());
         } else if (runtime.sharing()) {
             MewClientCompat.message("mewltiplayer.chat.opening", false);
         } else if (runtime.joining()) {
-            MewClientCompat.message("mewltiplayer.chat.guestStatus", true);
             route(runtime.network());
         } else {
             MewClientCompat.message("mewltiplayer.chat.idle", false);
@@ -80,14 +79,14 @@ public final class MewClientControl {
 
     public static void route(NetworkStatus network) {
         if (network == null || network.mode() == ConnectionMode.CONNECTED) {
-            MewClientCompat.message("mewltiplayer.chat.routeChecking", false);
+            MewClientCompat.checkingRoute();
         } else if (network.mode() == ConnectionMode.DIRECT) {
-            MewClientCompat.message("mewltiplayer.chat.routeDirect", true, network.latencyMs());
+            MewClientCompat.connectionStatus("mewltiplayer.chat.connectionDirect", network.latencyMs());
         } else if (network.mode() == ConnectionMode.RELAY) {
-            MewClientCompat.message("mewltiplayer.chat.routeRelay", false,
-                    network.relay().isEmpty() ? "auto" : network.relay(), network.latencyMs());
+            MewClientCompat.connectionStatus("mewltiplayer.chat.connectionRelay", network.latencyMs(),
+                    network.relay().isEmpty() ? "auto" : network.relay());
         } else {
-            MewClientCompat.message("mewltiplayer.chat.routeChecking", false);
+            MewClientCompat.checkingRoute();
         }
     }
 

@@ -1,6 +1,6 @@
 package dev.mewltiplayer.fabric.mixin;
 
-import dev.mewltiplayer.core.transport.InviteCode;
+import dev.mewltiplayer.core.transport.ShareCode;
 import dev.mewltiplayer.fabric.MewClientActions;
 import dev.mewltiplayer.fabric.MewJoinScreen;
 import net.minecraft.client.MinecraftClient;
@@ -20,7 +20,7 @@ public abstract class MewConnectMixin {
     private static void mew$connect(Screen parent, MinecraftClient client, ServerAddress address,
                                     ServerInfo serverInfo, boolean quickPlay, CookieStorage cookies, CallbackInfo ci) {
         String code = serverInfo.address.trim();
-        if (!InviteCode.looksLikeTailcatCode(code)) {
+        if (!ShareCode.looksLikeTailcatCode(code)) {
             return;
         }
 
@@ -32,7 +32,7 @@ public abstract class MewConnectMixin {
                 MewClientActions.disconnect();
                 return;
             }
-            ServerInfo tunnel = new ServerInfo(serverInfo.name, InviteCode.localAddress(port), ServerInfo.ServerType.LAN);
+            ServerInfo tunnel = new ServerInfo(serverInfo.name, ShareCode.localAddress(port), ServerInfo.ServerType.LAN);
             tunnel.setResourcePackPolicy(serverInfo.getResourcePackPolicy());
             ConnectScreen.connect(parent, client, new ServerAddress("127.0.0.1", port), tunnel, quickPlay, cookies);
         }, error -> {

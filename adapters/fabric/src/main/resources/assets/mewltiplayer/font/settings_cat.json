@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "mewltiplayer:font/chat_cat.png",
+      "ascent": 12,
+      "height": 14,
+      "chars": [
+        ""
+      ]
+    }
+  ]
+}

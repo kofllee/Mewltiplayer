@@ -1,6 +1,6 @@
 package dev.mewltiplayer.fabric.mixin;
 
-import dev.mewltiplayer.core.transport.InviteCode;
+import dev.mewltiplayer.core.transport.ShareCode;
 import dev.mewltiplayer.core.MewErrors;
 import dev.mewltiplayer.fabric.MewServerPing;
 import net.minecraft.SharedConstants;
@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MewStatusMixin {
     @Inject(method = "add", at = @At("HEAD"), cancellable = true)
     private void mew$ping(ServerInfo server, Runnable changed, Runnable failed, CallbackInfo ci) {
-        if (!InviteCode.looksLikeTailcatCode(server.address)) {
+        if (!ShareCode.looksLikeTailcatCode(server.address)) {
             return;
         }
         ci.cancel();

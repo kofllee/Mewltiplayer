@@ -23,7 +23,7 @@ public final class MewSettings {
     public static final String MAP = "map";
     public static final String URL = "url";
 
-    public String invitationMode = NEW;
+    public String shareCodeMode = NEW;
     public String derpMode = AUTO;
     public String derpMapJson = "";
     public String derpMapUrl = "";
@@ -39,7 +39,7 @@ public final class MewSettings {
             if (!document.getAsJsonObject().has("derpMode")) {
                 result.derpMode = result.derpMapUrl == null || result.derpMapUrl.isEmpty() ? AUTO : URL;
             }
-            if (!document.getAsJsonObject().has("invitationMode")) result.invitationMode = NEW;
+            if (!document.getAsJsonObject().has("shareCodeMode")) result.shareCodeMode = NEW;
             result.validate();
             return result;
         } catch (Exception error) {
@@ -75,8 +75,8 @@ public final class MewSettings {
     }
 
     public void validate() {
-        if (!NEW.equals(invitationMode) && !WORLD.equals(invitationMode) && !GLOBAL.equals(invitationMode)) {
-            throw new IllegalArgumentException("Invalid invitation mode");
+        if (!NEW.equals(shareCodeMode) && !WORLD.equals(shareCodeMode) && !GLOBAL.equals(shareCodeMode)) {
+            throw new IllegalArgumentException("Invalid share code mode");
         }
         if (!AUTO.equals(derpMode) && !MAP.equals(derpMode) && !URL.equals(derpMode)) {
             throw new IllegalArgumentException("Invalid DERP mode");
@@ -104,7 +104,7 @@ public final class MewSettings {
 
     public MewSettings copy() {
         MewSettings result = new MewSettings();
-        result.invitationMode = invitationMode;
+        result.shareCodeMode = shareCodeMode;
         result.derpMode = derpMode;
         result.derpMapJson = derpMapJson;
         result.derpMapUrl = derpMapUrl;

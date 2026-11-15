@@ -1,7 +1,7 @@
 package dev.mewltiplayer.fabric;
 
 import dev.mewltiplayer.core.MewSettings;
-import dev.mewltiplayer.core.MewInvitations;
+import dev.mewltiplayer.core.MewShareCodes;
 import dev.mewltiplayer.core.transport.BridgeStatus;
 import dev.mewltiplayer.core.transport.BundledHelper;
 import dev.mewltiplayer.core.transport.ConnectionInfo;
@@ -40,7 +40,7 @@ public final class MewRuntime {
     private long joinGeneration;
     private int sharedPort;
     private Path sharedIdentity;
-    private String invite;
+    private String shareCode;
     private String lastError = "";
     private volatile BridgeStatus bridgeStatus = new BridgeStatus(false, false, 0, 0);
     private volatile NetworkStatus networkStatus;
@@ -76,8 +76,8 @@ public final class MewRuntime {
         }
     }
 
-    public synchronized CompletableFuture<Void> resetInvitation(String mode, Path world, Path saves, boolean all) {
-        Path requestedIdentity = MewInvitations.identity(mode, world, configDirectory());
+    public synchronized CompletableFuture<Void> resetShareCode(String mode, Path world, Path saves, boolean all) {
+        Path requestedIdentity = MewShareCodes.identity(mode, world, configDirectory());
         if (sharing() && (all || (requestedIdentity != null && requestedIdentity.equals(sharedIdentity)))) {
             onlineSharingEnabled = false;
             stopShare();
@@ -85,8 +85,8 @@ public final class MewRuntime {
         CompletableFuture<Void> result = new CompletableFuture<>();
         executor.execute(() -> {
             try {
-                if (all) MewInvitations.resetAll(configDirectory(), saves);
-                else MewInvitations.reset(mode, world, configDirectory());
+                if (all) MewShareCodes.resetAll(configDirectory(), saves);
+                else MewShareCodes.reset(mode, world, configDirectory());
                 result.complete(null);
             } catch (IOException error) {
                 result.completeExceptionally(error);
@@ -95,13 +95,13 @@ public final class MewRuntime {
         return result;
     }
 
-    public synchronized String invite() {
-        return invite;
+    public synchronized String shareCode() {
+        return shareCode;
     }
 
     public synchronized boolean isSharingMode(String mode, Path world) {
         return sharingFuture != null
-                && Objects.equals(sharedIdentity, MewInvitations.identity(mode, world, configDirectory()));
+                && Objects.equals(sharedIdentity, MewShareCodes.identity(mode, world, configDirectory()));
     }
 
     public synchronized boolean sharing() {
@@ -169,7 +169,7 @@ public final class MewRuntime {
                 bridgeStatus = new BridgeStatus(false, false, 0, 0);
                 sharingFuture = null;
                 joiningFuture = null;
-                invite = null;
+                shareCode = null;
                 lastError = "Tailcat helper exited unexpectedly";
             }
             closeHelper();
@@ -221,9 +221,9 @@ public final class MewRuntime {
                         return;
                     }
                     if (dedicated) {
-                        writeInvite(code);
+                        writeShareCode(code);
                     }
-                    invite = code;
+                    shareCode = code;
                     result.complete(code);
                 }
             } catch (Exception error) {
@@ -285,9 +285,9 @@ public final class MewRuntime {
         sharingFuture = null;
         sharedPort = 0;
         sharedIdentity = null;
-        invite = null;
+        shareCode = null;
         try {
-            Files.deleteIfExists(configDirectory().resolve("invite.txt"));
+            Files.deleteIfExists(configDirectory().resolve("share-code.txt"));
         } catch (IOException ignored) {
         }
         if (!executor.isShutdown()) {
@@ -356,8 +356,8 @@ public final class MewRuntime {
         return helper;
     }
 
-    private void writeInvite(String code) throws IOException {
-        Path file = configDirectory().resolve("invite.txt");
+    private void writeShareCode(String code) throws IOException {
+        Path file = configDirectory().resolve("share-code.txt");
         Files.createDirectories(file.getParent());
         Files.write(file, code.getBytes(StandardCharsets.UTF_8));
     }

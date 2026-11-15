@@ -12,7 +12,7 @@ final class MewWorldSettingsTest {
     @TempDir Path world;
 
     @Test
-    void defaultsToTemporaryInvitationAndPersistsPin() throws Exception {
+    void defaultsToTemporaryShareCodeAndPersistsPin() throws Exception {
         assertFalse(MewWorldSettings.pinned(world));
         assertFalse(MewWorldSettings.shareViaTailcat(world));
         MewWorldSettings.setPinned(world, true);

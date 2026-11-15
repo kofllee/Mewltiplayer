@@ -35,7 +35,7 @@ public final class MewltiplayerMod implements ModInitializer {
             if (error != null) {
                 System.err.println("[Mewltiplayer] Dedicated server sharing failed: " + reason(error));
             } else {
-                System.out.println("[Mewltiplayer] Tailcat invitation saved to config/mewltiplayer/invite.txt");
+                System.out.println("[Mewltiplayer] Share code: " + code + " (saved to config/mewltiplayer/share-code.txt)");
             }
         });
     }

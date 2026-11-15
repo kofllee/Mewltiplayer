@@ -3,6 +3,7 @@
   "id": "mewltiplayer",
   "version": "${version}",
   "name": "Mewltiplayer",
+  "icon": "assets/mewltiplayer/icon.png",
   "description": "Share Minecraft worlds with friends using Tailcat-powered connections.",
   "authors": ["Mewltiplayer contributors"],
   "license": "MIT",

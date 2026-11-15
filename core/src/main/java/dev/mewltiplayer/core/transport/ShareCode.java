@@ -2,10 +2,10 @@ package dev.mewltiplayer.core.transport;
 
 import java.util.regex.Pattern;
 
-public final class InviteCode {
+public final class ShareCode {
     private static final Pattern CANDIDATE = Pattern.compile("tc[A-Za-z0-9_-]{20,8190}");
 
-    private InviteCode() {
+    private ShareCode() {
     }
 
     public static boolean looksLikeTailcatCode(String input) {

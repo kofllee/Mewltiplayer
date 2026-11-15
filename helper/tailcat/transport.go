@@ -212,7 +212,7 @@ func (s *sessions) startJoinMap(code, derpMapURL, derpMapJSON string) (int, stri
 		return 0, "invalid_network_settings"
 	}
 	if _, err := tailcat.ParseAddr(tailcat.Addr(code)); err != nil {
-		return 0, "invalid_invite"
+		return 0, "invalid_share_code"
 	}
 
 	mapServer, localURL, ok := localMap(derpMapJSON)

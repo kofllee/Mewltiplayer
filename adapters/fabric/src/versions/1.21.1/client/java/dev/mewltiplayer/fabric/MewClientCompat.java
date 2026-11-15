@@ -19,6 +19,8 @@ public final class MewClientCompat {
     private static ChatHudLine sharingLine;
     private static final Identifier CAT_FONT = Identifier.of("mewltiplayer", "chat_cat");
 
+    private static final Identifier SPINNER_FONT = Identifier.of("mewltiplayer", "spinner");
+
     private MewClientCompat() {}
 
     public static boolean published() {
@@ -65,22 +67,40 @@ public final class MewClientCompat {
         }
     }
 
+    public static void connectionStatus(String key, long latencyMs, Object... args) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null) return;
+        MutableText line = prefix().append(Text.translatable(key, args).formatted(Formatting.GREEN));
+        if (latencyMs >= 0) {
+            line.append(Text.literal("  " + latencyMs + " ms").formatted(Formatting.GRAY));
+        }
+        client.player.sendMessage(line, false);
+    }
+
+    public static void checkingRoute() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null) return;
+        client.player.sendMessage(prefix()
+                .append(Text.translatable("mewltiplayer.chat.connectionConnected").formatted(Formatting.GREEN))
+                .append(Text.literal(" "))
+                .append(Text.translatable("mewltiplayer.chat.connectionChecking").formatted(Formatting.GRAY)), false);
+    }
+
     public static void execute(Runnable task) {
         MinecraftClient.getInstance().execute(task);
     }
 
-    public static void publishedInvite(String code) {
+    public static void publishedShareCode(String code) {
         message("mewltiplayer.chat.shared", true);
-        copyInvite(code);
+        copyShareCode(code);
     }
 
-    public static void copyInvite(String code) {
+    public static void copyShareCode(String code) {
         MinecraftClient client = MinecraftClient.getInstance();
-        client.keyboard.setClipboard(code);
         if (client.player != null) {
             client.player.sendMessage(prefix()
-                    .append(Text.translatable("mewltiplayer.chat.invite").formatted(Formatting.GRAY))
-                    .append(Text.literal(" [").formatted(Formatting.GRAY))
+                    .append(Text.translatable("mewltiplayer.chat.shareCode").formatted(Formatting.GRAY))
+                    .append(Text.literal(": " + code + " [").formatted(Formatting.GRAY))
                     .append(Text.literal("Copy").styled(style -> style.withClickEvent(
                             new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, code)))
                             .formatted(Formatting.AQUA, Formatting.UNDERLINE))
@@ -89,7 +109,8 @@ public final class MewClientCompat {
     }
 
     private static Text sharingText() {
-        return prefix().append(Text.literal(MewSpinner.frame() + "  ").formatted(Formatting.GOLD))
+        return prefix().append(Text.literal(MewSpinner.frame()).styled(style -> style.withFont(SPINNER_FONT)))
+                .append(Text.literal("  "))
                 .append(Text.translatable("mewltiplayer.chat.opening").formatted(Formatting.GRAY));
     }
 

@@ -13,14 +13,14 @@ final class MewSettingsTest {
         MewSettings defaults = MewSettings.load(file);
         defaults.regionId = 302;
         defaults.derpMode = MewSettings.URL;
-        defaults.invitationMode = MewSettings.GLOBAL;
+        defaults.shareCodeMode = MewSettings.GLOBAL;
         defaults.derpMapUrl = "https://example.com/map.json";
         defaults.save(file);
 
         MewSettings restored = MewSettings.load(file);
         assertEquals(302, restored.regionId);
         assertEquals(defaults.derpMapUrl, restored.derpMapUrl);
-        assertEquals(MewSettings.GLOBAL, restored.invitationMode);
+        assertEquals(MewSettings.GLOBAL, restored.shareCodeMode);
         assertEquals(MewSettings.URL, restored.derpMode);
     }
 
@@ -30,7 +30,7 @@ final class MewSettingsTest {
         Files.write(file, "{\"derpMapUrl\":\"https://example.org/map.json\",\"regionId\":31}".getBytes(java.nio.charset.StandardCharsets.UTF_8));
         MewSettings settings = MewSettings.load(file);
         assertEquals(MewSettings.URL, settings.derpMode);
-        assertEquals(MewSettings.NEW, settings.invitationMode);
+        assertEquals(MewSettings.NEW, settings.shareCodeMode);
         assertEquals(31, settings.regionId);
     }
 

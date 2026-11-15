@@ -1,0 +1,13 @@
+{
+  "providers": [
+    {
+      "type": "bitmap",
+      "file": "mewltiplayer:font/spinner.png",
+      "ascent": 10,
+      "height": 12,
+      "chars": [
+        ""
+      ]
+    }
+  ]
+}

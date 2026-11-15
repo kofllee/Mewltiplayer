@@ -19,7 +19,7 @@ func TestProtocol(t *testing.T) {
 		`{"id":"hello","type":"hello","protocolVersion":1}`,
 		`{"id":"ping","type":"ping","protocolVersion":1}`,
 		`{"id":"bad","type":"share","protocolVersion":1,"port":0}`,
-		`{"id":"join","type":"join","protocolVersion":1,"code":"not-an-invite"}`,
+		`{"id":"join","type":"join","protocolVersion":1,"code":"not-a-share-code"}`,
 		`{"id":"status","type":"status","protocolVersion":1}`,
 		`{"id":"bye","type":"shutdown","protocolVersion":1}`,
 	}, "\n") + "\n"
@@ -37,7 +37,7 @@ func TestProtocol(t *testing.T) {
 		{"hello", true, ""},
 		{"ping", true, ""},
 		{"bad", false, "invalid_port"},
-		{"join", false, "invalid_invite"},
+		{"join", false, "invalid_share_code"},
 		{"status", true, ""},
 		{"bye", true, ""},
 	}
@@ -141,7 +141,7 @@ func TestTCPBridge(t *testing.T) {
 	host.stopShare()
 }
 
-func TestPersistentInvitation(t *testing.T) {
+func TestPersistentShareCode(t *testing.T) {
 	if os.Getenv("MEWLTIPLAYER_E2E") != "1" {
 		t.Skip("requires live Tailcat DERP connectivity")
 	}
@@ -157,7 +157,7 @@ func TestPersistentInvitation(t *testing.T) {
 		server.stopShare()
 	}
 	if codes[0] != codes[1] {
-		t.Fatal("dedicated invitation changed after restart")
+		t.Fatal("dedicated share code changed after restart")
 	}
 }
 

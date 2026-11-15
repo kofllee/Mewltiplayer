@@ -13,16 +13,23 @@ public final class MewDedicatedControl {
 
     public static CompletableFuture<String> start(MinecraftServer server) {
         if (!MewServerCompat.dedicated(server)) {
-            return CompletableFuture.completedFuture("Use the native Open to LAN screen for singleplayer.");
+            return CompletableFuture.completedFuture("Use Open to LAN in a singleplayer world");
         }
-        return MewRuntime.INSTANCE.share(MewServerCompat.port(server), true)
+        MewRuntime runtime = MewRuntime.INSTANCE;
+        if (runtime.sharing()) {
+            return CompletableFuture.completedFuture("Tailcat is already running");
+        }
+        return runtime.share(MewServerCompat.port(server), true)
                 .handle((code, error) -> error == null
-                        ? "Tailcat is sharing. Use /mew invite to copy the invitation."
-                        : MewErrors.describe(error));
+                        ? "Server is now shared through Tailcat\nShare code: " + code
+                        : MewErrors.describe(error).replaceAll("[.]+$", ""));
     }
 
-    public static void stop() {
-        MewRuntime.INSTANCE.stopShare();
+    public static String stop() {
+        MewRuntime runtime = MewRuntime.INSTANCE;
+        if (!runtime.sharing()) return "Tailcat is already stopped";
+        runtime.stopShare();
+        return "Tailcat stopped (Minecraft server remains online)";
     }
 
     public static CompletableFuture<String> reset(MinecraftServer server) {
@@ -30,30 +37,39 @@ public final class MewDedicatedControl {
         try {
             Files.deleteIfExists(MewRuntime.INSTANCE.configDirectory().resolve("server-identity.json"));
         } catch (IOException error) {
-            return CompletableFuture.completedFuture("Could not revoke saved invitation (M302).");
+            return CompletableFuture.completedFuture("Failed to reset share code (M302)");
         }
-        return start(server).thenApply(message -> "Previous invitation revoked. " + message);
+        return start(server).thenApply(message -> message.startsWith("Server is now shared through Tailcat")
+                ? "Share code reset\n" + message.substring("Server is now shared through Tailcat\n".length())
+                : message);
     }
 
-    public static String invite() {
-        String code = MewRuntime.INSTANCE.invite();
-        return code == null ? "No active invitation. Use /mew start." : code;
+    public static String shareCode() {
+        String code = MewRuntime.INSTANCE.shareCode();
+        return code == null ? "No share code yet (use /mewserver start)" : code;
     }
 
     public static String status() {
-        BridgeStatus current = MewRuntime.INSTANCE.status();
-        return "Tailcat: " + (MewRuntime.INSTANCE.invite() != null ? "sharing"
-                : MewRuntime.INSTANCE.sharing() ? "starting" : "idle")
-                + " | Helper: " + (MewRuntime.INSTANCE.helperOnline() ? "running" : "stopped")
-                + " | TCP connections: " + current.connections()
-                + " | Direct/DERP routing: each guest can check /mew status";
+        MewRuntime runtime = MewRuntime.INSTANCE;
+        BridgeStatus current = runtime.status();
+        if (runtime.shareCode() != null) {
+            return "World shared (" + current.connections() + " connections)"
+                    + "\nHelper " + (runtime.helperOnline() ? "running" : "stopped");
+        }
+        if (runtime.sharing()) return "Opening world through Tailcat";
+        return "Tailcat is not running";
     }
 
     public static String settings() {
-        MewSettings s = MewRuntime.INSTANCE.settings();
-        return "Settings: config/mewltiplayer/settings.json | DERP: "
-                + s.derpMode
-                + " | Region: " + (s.regionId == 0 ? "auto" : s.regionId)
-                + " | Dedicated server: config/mewltiplayer/server.json";
+        MewSettings settings = MewRuntime.INSTANCE.settings();
+        String mode = switch (settings.derpMode) {
+            case MewSettings.AUTO -> "Automatic";
+            case MewSettings.MAP -> "Custom map";
+            case MewSettings.URL -> "Custom URL";
+            default -> settings.derpMode;
+        };
+        return "DERP " + mode + " (Region " + (settings.regionId == 0 ? "Auto" : settings.regionId) + ")"
+                + "\nSettings config/mewltiplayer/settings.json"
+                + "\nServer config/mewltiplayer/server.json";
     }
 }

@@ -80,12 +80,12 @@ public final class ProcessTailcatBridge implements TailcatBridge {
     }
 
     @Override
-    public CompletionStage<ConnectionInfo> join(String inviteCode) {
-        if (inviteCode == null || !inviteCode.trim().startsWith("tc") || inviteCode.trim().length() > 8192) {
-            throw new IllegalArgumentException("Invalid Tailcat invitation");
+    public CompletionStage<ConnectionInfo> join(String shareCode) {
+        if (shareCode == null || !shareCode.trim().startsWith("tc") || shareCode.trim().length() > 8192) {
+            throw new IllegalArgumentException("Invalid Tailcat share code");
         }
         JsonObject args = networkArguments();
-        args.addProperty("code", inviteCode.trim());
+        args.addProperty("code", shareCode.trim());
         return process.request("join", args, 45).thenApply(reply ->
                 new ConnectionInfo(new InetSocketAddress("127.0.0.1", reply.get("localPort").getAsInt()), ConnectionMode.CONNECTED));
     }

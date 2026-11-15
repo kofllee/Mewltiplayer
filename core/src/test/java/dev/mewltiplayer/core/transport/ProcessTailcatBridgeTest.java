@@ -37,11 +37,11 @@ final class ProcessTailcatBridgeTest {
                 }
             });
 
-            String invite = host.share(echo.getLocalPort()).toCompletableFuture().get(50, TimeUnit.SECONDS);
-            assertTrue(invite.startsWith("tc"));
+            String shareCode = host.share(echo.getLocalPort()).toCompletableFuture().get(50, TimeUnit.SECONDS);
+            assertTrue(shareCode.startsWith("tc"));
             assertTrue(host.status().toCompletableFuture().get(10, TimeUnit.SECONDS).isSharing());
 
-            ConnectionInfo info = guest.join(invite).toCompletableFuture().get(50, TimeUnit.SECONDS);
+            ConnectionInfo info = guest.join(shareCode).toCompletableFuture().get(50, TimeUnit.SECONDS);
             assertEquals(ConnectionMode.CONNECTED, info.mode());
             assertTrue(guest.status().toCompletableFuture().get(10, TimeUnit.SECONDS).isJoining());
 

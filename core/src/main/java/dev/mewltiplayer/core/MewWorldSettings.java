@@ -23,7 +23,7 @@ public final class MewWorldSettings {
     }
 
     public static boolean pinned(Path worldDirectory) {
-        return flag(worldDirectory, "pinnedInvite");
+        return flag(worldDirectory, "pinnedShareCode");
     }
 
     public static boolean shareViaTailcat(Path worldDirectory) {
@@ -35,8 +35,8 @@ public final class MewWorldSettings {
     }
 
     public static void setPinned(Path worldDirectory, boolean pinned) throws IOException {
-        update(worldDirectory, json -> json.addProperty("pinnedInvite", pinned));
-        // Retain existing identities when users switch invitation modes.
+        update(worldDirectory, json -> json.addProperty("pinnedShareCode", pinned));
+        // Retain existing identities when users switch share code modes.
     }
 
     public static void resetIdentity(Path worldDirectory) throws IOException {

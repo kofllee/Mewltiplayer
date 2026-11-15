@@ -17,22 +17,22 @@ public final class MewErrors {
             error = error.getCause();
         }
         String message = String.valueOf(error.getMessage()).toLowerCase(Locale.ROOT);
-        if (message.contains("invalid_invite")) {
-            return "Invalid Tailcat invitation (M101)";
+        if (message.contains("invalid_share_code")) {
+            return "Invalid share code (M101)";
         }
         if (message.contains("connection_failed") || message.contains("probe_failed")) {
-            return "Could not reach the host (M201)";
+            return "Could not reach host (M201)";
         }
         if (message.contains("not found") || message.contains("helper exited")
                 || message.contains("helper failed") || message.contains("no tailcat helper")) {
-            return "Tailcat could not start (M202)";
+            return "Failed to start Tailcat (M202)";
         }
         if (message.contains("timed out") || message.contains("timeout")) {
             return "Connection timed out (M203)";
         }
         if (message.contains("unsupported_protocol_version")) {
-            return "Incompatible Tailcat helper (M204)";
+            return "Incompatible Tailcat version (M204)";
         }
-        return "Tailcat connection failed (M299)";
+        return "Connection failed (M299)";
     }
 }

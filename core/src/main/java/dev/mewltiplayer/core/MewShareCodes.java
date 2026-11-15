@@ -7,9 +7,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 
-/** Invitation identities are independent: switching modes never destroys another mode's keys. */
-public final class MewInvitations {
-    private MewInvitations() {}
+/** Share code identities are independent: switching modes never destroys another mode's keys. */
+public final class MewShareCodes {
+    private MewShareCodes() {}
 
     public static Path identity(String mode, Path world, Path config) {
         if (MewSettings.GLOBAL.equals(mode)) return config.resolve("global-identity.json");
@@ -18,8 +18,8 @@ public final class MewInvitations {
     }
 
     public static Path codeFile(String mode, Path world, Path config) {
-        if (MewSettings.GLOBAL.equals(mode)) return config.resolve("global-invite.txt");
-        if (MewSettings.WORLD.equals(mode) && world != null) return MewWorldSettings.folder(world).resolve("invite.txt");
+        if (MewSettings.GLOBAL.equals(mode)) return config.resolve("global-share-code.txt");
+        if (MewSettings.WORLD.equals(mode) && world != null) return MewWorldSettings.folder(world).resolve("share-code.txt");
         return null;
     }
 
@@ -40,7 +40,7 @@ public final class MewInvitations {
         Path path = codeFile(mode, world, config);
         if (path == null || identity(mode, world, config) == null || code == null) return;
         Files.createDirectories(path.getParent());
-        Path temp = Files.createTempFile(path.getParent(), ".invite-", ".tmp");
+        Path temp = Files.createTempFile(path.getParent(), ".share-code-", ".tmp");
         try {
             Files.write(temp, code.getBytes(StandardCharsets.UTF_8));
             try {

@@ -15,6 +15,21 @@ public final class MewDedicatedCommands {
         source.sendFeedback(() -> Text.literal("[Mewltiplayer] " + message), false);
     }
 
+    private static void replyCode(ServerCommandSource source) {
+        String code = MewRuntime.INSTANCE.shareCode();
+        if (code == null) {
+            reply(source, "No share code yet (use /mewserver start)");
+        } else if (source.getPlayer() == null) {
+            reply(source, "Share code " + code);
+        } else {
+            source.sendFeedback(() -> Text.literal("[Mewltiplayer] Share code ")
+                    .append(Text.literal("[Copy]").styled(style ->
+                            style.withClickEvent(new net.minecraft.text.ClickEvent(
+                                    net.minecraft.text.ClickEvent.Action.COPY_TO_CLIPBOARD, code))
+                                    .withUnderline(true).withColor(0x55ffff))), false);
+        }
+    }
+
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, access, environment) -> {
             dispatcher.register(command("mew"));
@@ -29,12 +44,11 @@ public final class MewDedicatedCommands {
                         .then(literal("status").executes(context -> {
                             reply(context.getSource(), MewDedicatedControl.status()); return 1;
                         }))
-                        .then(literal("invite").executes(context -> {
-                            reply(context.getSource(), MewDedicatedControl.invite()); return 1;
+                        .then(literal("code").executes(context -> {
+                            replyCode(context.getSource()); return 1;
                         }))
                         .then(literal("stop").executes(context -> {
-                            MewDedicatedControl.stop();
-                            reply(context.getSource(), "Tailcat stopped; Minecraft server is still running.");
+                            reply(context.getSource(), MewDedicatedControl.stop());
                             return 1;
                         }))
                         .then(literal("start").executes(context -> {

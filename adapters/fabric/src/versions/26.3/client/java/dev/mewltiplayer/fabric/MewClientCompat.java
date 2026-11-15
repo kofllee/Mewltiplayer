@@ -22,6 +22,9 @@ public final class MewClientCompat {
     private static final FontDescription.Resource CAT_FONT = new FontDescription.Resource(
             Identifier.fromNamespaceAndPath("mewltiplayer", "chat_cat"));
 
+    private static final FontDescription.Resource SPINNER_FONT = new FontDescription.Resource(
+            Identifier.fromNamespaceAndPath("mewltiplayer", "spinner"));
+
     private MewClientCompat() {}
 
     public static boolean published() {
@@ -68,22 +71,40 @@ public final class MewClientCompat {
         }
     }
 
+    public static void connectionStatus(String key, long latencyMs, Object... args) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return;
+        MutableComponent line = prefix().append(Component.translatable(key, args).withStyle(ChatFormatting.GREEN));
+        if (latencyMs >= 0) {
+            line.append(Component.literal("  " + latencyMs + " ms").withStyle(ChatFormatting.GRAY));
+        }
+        client.player.sendSystemMessage(line);
+    }
+
+    public static void checkingRoute() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null) return;
+        client.player.sendSystemMessage(prefix()
+                .append(Component.translatable("mewltiplayer.chat.connectionConnected").withStyle(ChatFormatting.GREEN))
+                .append(Component.literal(" "))
+                .append(Component.translatable("mewltiplayer.chat.connectionChecking").withStyle(ChatFormatting.GRAY)));
+    }
+
     public static void execute(Runnable task) {
         Minecraft.getInstance().execute(task);
     }
 
-    public static void publishedInvite(String code) {
+    public static void publishedShareCode(String code) {
         message("mewltiplayer.chat.shared", true);
-        copyInvite(code);
+        copyShareCode(code);
     }
 
-    public static void copyInvite(String code) {
+    public static void copyShareCode(String code) {
         Minecraft client = Minecraft.getInstance();
-        client.keyboardHandler.setClipboard(code);
         if (client.player != null) {
             client.player.sendSystemMessage(prefix()
-                    .append(Component.translatable("mewltiplayer.chat.invite").withStyle(ChatFormatting.GRAY))
-                    .append(Component.literal(" [").withStyle(ChatFormatting.GRAY))
+                    .append(Component.translatable("mewltiplayer.chat.shareCode").withStyle(ChatFormatting.GRAY))
+                    .append(Component.literal(": " + code + " [").withStyle(ChatFormatting.GRAY))
                     .append(Component.literal("Copy").withStyle(Style.EMPTY
                             .withClickEvent(new ClickEvent.CopyToClipboard(code))
                             .withUnderlined(true).withColor(0x55ffff)))
@@ -92,7 +113,8 @@ public final class MewClientCompat {
     }
 
     private static Component sharingText() {
-        return prefix().append(Component.literal(MewSpinner.frame() + "  ").withStyle(ChatFormatting.GOLD))
+        return prefix().append(Component.literal(MewSpinner.frame()).withStyle(style -> style.withFont(SPINNER_FONT)))
+                .append(Component.literal("  "))
                 .append(Component.translatable("mewltiplayer.chat.opening").withStyle(ChatFormatting.GRAY));
     }
 
