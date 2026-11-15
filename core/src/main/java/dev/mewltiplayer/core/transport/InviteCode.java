@@ -3,8 +3,7 @@ package dev.mewltiplayer.core.transport;
 import java.util.regex.Pattern;
 
 public final class InviteCode {
-    // This is only a syntactic recognition heuristic, not a cryptographic validation.
-    private static final Pattern CANDIDATE = Pattern.compile("tcp[A-Za-z0-9_-]{13,509}");
+    private static final Pattern CANDIDATE = Pattern.compile("tc[A-Za-z0-9_-]{20,8190}");
 
     private InviteCode() {
     }

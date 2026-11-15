@@ -9,6 +9,7 @@ class InviteCodeTest {
     @Test
     void acceptsCandidateCode() {
         assertTrue(InviteCode.looksLikeTailcatCode("tcpGFwWCAQFeXPoeU5SGUoZpWyXgKUByeG3NGd6BaaFMGmhyiucmFrWC"));
+        assertTrue(InviteCode.looksLikeTailcatCode("tcomFwWCcjS5nKNqAod034nWoJZW0LZqDhhC8U_dKdnDRYQ8uNGFpGQEu"));
     }
 
     @Test
