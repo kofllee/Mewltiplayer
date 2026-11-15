@@ -32,9 +32,9 @@ public abstract class MewConnectMixin {
                 MewClientActions.disconnect();
                 return;
             }
-            ServerInfo local = new ServerInfo(serverInfo.name, "127.0.0.1:" + port, serverInfo.getServerType());
-            local.setResourcePackPolicy(serverInfo.getResourcePackPolicy());
-            ConnectScreen.connect(parent, client, new ServerAddress("127.0.0.1", port), local, quickPlay, cookies);
+            ServerInfo tunnel = new ServerInfo(serverInfo.name, serverInfo.address, ServerInfo.ServerType.LAN);
+            tunnel.setResourcePackPolicy(serverInfo.getResourcePackPolicy());
+            ConnectScreen.connect(parent, client, new ServerAddress("127.0.0.1", port), tunnel, quickPlay, cookies);
         }, error -> {
             if (client.currentScreen == screen) {
                 screen.fail(error);
