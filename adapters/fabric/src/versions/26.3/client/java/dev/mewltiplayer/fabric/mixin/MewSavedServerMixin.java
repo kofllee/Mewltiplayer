@@ -15,9 +15,13 @@ public abstract class MewSavedServerMixin {
     @Shadow private EditBox ipEdit;
     @Shadow private Button addButton;
 
-    @Inject(method = "init", at = @At("TAIL"))
-    private void mew$init(CallbackInfo ci) {
-        ipEdit.setMaxLength(8192);
+    @org.spongepowered.asm.mixin.injection.ModifyArg(
+            method = "init",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/components/EditBox;setMaxLength(I)V"),
+            index = 0)
+    private int mew$allowFullInviteCode(int vanillaLimit) {
+        return 8192;
     }
 
     @Inject(method = "updateAddButtonStatus", at = @At("TAIL"))

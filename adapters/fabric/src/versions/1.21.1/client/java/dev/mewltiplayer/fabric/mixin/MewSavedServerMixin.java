@@ -15,9 +15,13 @@ public abstract class MewSavedServerMixin {
     @Shadow private TextFieldWidget addressField;
     @Shadow private ButtonWidget addButton;
 
-    @Inject(method = "init", at = @At("TAIL"))
-    private void mew$init(CallbackInfo ci) {
-        addressField.setMaxLength(8192);
+    @org.spongepowered.asm.mixin.injection.ModifyArg(
+            method = "init",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/widget/TextFieldWidget;setMaxLength(I)V"),
+            index = 0)
+    private int mew$allowFullInviteCode(int vanillaLimit) {
+        return 8192;
     }
 
     @Inject(method = "updateAddButton", at = @At("TAIL"))
