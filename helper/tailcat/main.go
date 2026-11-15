@@ -21,6 +21,7 @@ type request struct {
 	Code            string `json:"code,omitempty"`
 	DERPMapURL      string `json:"derpMapUrl,omitempty"`
 	RegionID        int    `json:"regionId,omitempty"`
+	IdentityFile    string `json:"identityFile,omitempty"`
 }
 
 type response struct {
@@ -30,6 +31,7 @@ type response struct {
 	HelperVersion   string `json:"helperVersion,omitempty"`
 	Code            string `json:"code,omitempty"`
 	LocalPort       int    `json:"localPort,omitempty"`
+	Connections     int    `json:"connections,omitempty"`
 	Sharing         bool   `json:"sharing,omitempty"`
 	Joining         bool   `json:"joining,omitempty"`
 	Mode            string `json:"mode,omitempty"`
@@ -94,7 +96,7 @@ func (s *sessions) handle(req request) response {
 	case "ping":
 		return response{OK: true}
 	case "share":
-		code, err := s.startShare(req.Port, req.DERPMapURL, req.RegionID)
+		code, err := s.startShare(req.Port, req.DERPMapURL, req.RegionID, req.IdentityFile)
 		if err != "" {
 			return response{Error: err}
 		}
@@ -119,6 +121,9 @@ func (s *sessions) handle(req request) response {
 		return response{OK: true}
 	case "status":
 		result := response{OK: true, Sharing: s.share != nil, Joining: s.join != nil}
+		if s.share != nil {
+			result.Connections = s.share.pipes.count()
+		}
 		if s.join != nil {
 			result.LocalPort = s.join.listener.Addr().(*net.TCPAddr).Port
 		}

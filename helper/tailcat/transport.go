@@ -74,6 +74,12 @@ func (p *pipeGroup) proxy(in net.Conn, dial func() (net.Conn, error)) {
 	p.mu.Unlock()
 }
 
+func (p *pipeGroup) count() int {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return len(p.active) / 2
+}
+
 func (p *pipeGroup) close() {
 	p.mu.Lock()
 	p.closed = true
@@ -91,7 +97,7 @@ func validDERPMapURL(address string) bool {
 	return err == nil && (parsed.Scheme == "https" || parsed.Scheme == "http") && parsed.Host != "" && parsed.User == nil
 }
 
-func (s *sessions) startShare(port int, derpMapURL string, regionID int) (string, string) {
+func (s *sessions) startShare(port int, derpMapURL string, regionID int, identityFile string) (string, string) {
 	if s.share != nil {
 		return "", "already_sharing"
 	}
@@ -102,11 +108,23 @@ func (s *sessions) startShare(port int, derpMapURL string, regionID int) (string
 		return "", "invalid_network_settings"
 	}
 
+	private, preshared, err := loadIdentity(identityFile)
+	if err != nil {
+		return "", "identity_unavailable"
+	}
+	if identityFile != "" && regionID == 0 {
+		regionID, err = savedRegion(identityFile)
+		if err != nil {
+			return "", "identity_unavailable"
+		}
+	}
 	pipes := newPipeGroup()
 	server := &tailcat.Server{
-		DERPMapURL: derpMapURL,
-		RegionID:   tailcfg.DERPRegionID(regionID),
-		Logf:       func(string, ...any) {},
+		Key:          private,
+		PresharedKey: preshared,
+		DERPMapURL:   derpMapURL,
+		RegionID:     tailcfg.DERPRegionID(regionID),
+		Logf:         func(string, ...any) {},
 		OnTCP: func(remotePort uint16) func(net.Conn) {
 			if remotePort != tunnelPort {
 				return nil
@@ -124,8 +142,16 @@ func (s *sessions) startShare(port int, derpMapURL string, regionID int) (string
 		server.Close()
 		return "", "share_start_failed"
 	}
+	code := server.TailcatAddr()
+	if identityFile != "" {
+		info, parseErr := tailcat.ParseAddr(code)
+		if parseErr != nil || saveRegion(identityFile, int(info.RegionID)) != nil {
+			server.Close()
+			return "", "identity_unavailable"
+		}
+	}
 	s.share = &sharedServer{server: server, pipes: pipes}
-	return string(server.TailcatAddr()), ""
+	return string(code), ""
 }
 
 func (s *sessions) startJoin(code, derpMapURL string) (int, string) {

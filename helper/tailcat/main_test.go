@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -107,7 +108,7 @@ func TestTCPBridge(t *testing.T) {
 	guest := &sessions{}
 	defer guest.close()
 
-	code, failure := host.startShare(echo.Addr().(*net.TCPAddr).Port, "", 0)
+	code, failure := host.startShare(echo.Addr().(*net.TCPAddr).Port, "", 0, "")
 	if failure != "" {
 		t.Fatalf("host: %s", failure)
 	}
@@ -138,4 +139,24 @@ func TestTCPBridge(t *testing.T) {
 	}
 	guest.stopJoin()
 	host.stopShare()
+}
+
+func TestPersistentInvitation(t *testing.T) {
+	if os.Getenv("MEWLTIPLAYER_E2E") != "1" {
+		t.Skip("requires live Tailcat DERP connectivity")
+	}
+	identity := filepath.Join(t.TempDir(), "server-identity.json")
+	var codes [2]string
+	for i := range codes {
+		server := &sessions{}
+		code, failure := server.startShare(25565, "", 0, identity)
+		if failure != "" {
+			t.Fatalf("share %d: %s", i, failure)
+		}
+		codes[i] = code
+		server.stopShare()
+	}
+	if codes[0] != codes[1] {
+		t.Fatal("dedicated invitation changed after restart")
+	}
 }

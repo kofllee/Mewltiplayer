@@ -2,16 +2,16 @@
 
 Minecraft Java multiplayer via Tailcat, without port forwarding or a separate VPN.
 
-Work in progress. Fabric targets: Minecraft 26.3 and 1.21.1. The Tailcat transport works, but Minecraft Share/Join integration is not implemented yet.
+Work in progress. Fabric targets: Minecraft 26.3 and 1.21.1. Share a singleplayer world from the pause menu, copy its `tc...` invite, and join from Multiplayer using the invite as a server address. Dedicated servers can publish a persistent invite.
 
 ## Build
 
 ```powershell
-.\gradlew.bat :platform:build
-.\gradlew.bat '-Ptarget=fabric-1.21.1' :platform:build
+.\dev.cmd fabric-26.3 :platform:build
+.\dev.cmd fabric-1.21.1 :platform:build
 .\helper.cmd build
 ```
 
-Requires JDK 25. On Windows, `dev.cmd fabric-26.3 :platform:build` uses the local JDK.
+Requires JDK 25 and Fabric API. The Tailcat helper is currently a separate executable: place it at `config/mewltiplayer/mewltiplayer-helper.exe` on Windows, or supply its absolute path via `MEWLTIPLAYER_HELPER`. Native builds are not bundled yet.
 
-Builds are saved to `targets/<target>/build/libs/`.
+Dedicated servers automatically create `config/mewltiplayer/server.json` and write the invite to `config/mewltiplayer/invite.txt`. Keep invitations private. Set `enabled` to `false` in `server.json` to disable sharing.
