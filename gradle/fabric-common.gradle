@@ -1,0 +1,77 @@
+def targetProperties = new Properties()
+project.file('gradle.properties').withInputStream { targetProperties.load(it) }
+targetProperties.each { key, value ->
+    project.ext.set(key.toString(), value.toString())
+}
+
+base {
+    archivesName = "mewltiplayer-${project.minecraft_version}-fabric"
+}
+
+loom {
+    splitEnvironmentSourceSets()
+    mods {
+        mewltiplayer {
+            sourceSet sourceSets.main
+            sourceSet sourceSets.client
+        }
+    }
+}
+
+sourceSets {
+    main {
+        java.srcDir rootProject.file('adapters/fabric/src/main/java')
+        resources.srcDir rootProject.file('adapters/fabric/src/main/resources')
+    }
+    client {
+        java.srcDir rootProject.file('adapters/fabric/src/client/java')
+    }
+}
+
+dependencies {
+    implementation project(':core')
+    minecraft "com.mojang:minecraft:${project.minecraft_version}"
+
+    if (project.hasProperty('yarn_mappings')) {
+        mappings "net.fabricmc:yarn:${project.yarn_mappings}:v2"
+        modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    } else {
+        implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    }
+}
+
+tasks.named('processResources') {
+    inputs.property('modVersion', project.version)
+    inputs.property('minecraftVersion', project.minecraft_version)
+    inputs.property('javaVersion', project.java_version)
+    inputs.property('loaderVersion', project.loader_version)
+
+    filesMatching('fabric.mod.json') {
+        expand(
+            version: project.version,
+            minecraft_version: project.minecraft_version,
+            java_version: project.java_version,
+            loader_version: project.loader_version
+        )
+    }
+}
+
+// Bundle the version-independent Java code into the mod JAR.
+// A separate copy of core.jar must not be installed by players.
+tasks.named('jar', Jar) {
+    from(project(':core').sourceSets.main.output)
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = Integer.parseInt(project.java_version.toString())
+}
+
+java {
+    sourceCompatibility = JavaVersion.toVersion(project.java_version)
+    targetCompatibility = JavaVersion.toVersion(project.java_version)
+    withSourcesJar()
+}
+
+tasks.named('sourcesJar', Jar) {
+    from(project(':core').sourceSets.main.allSource)
+}

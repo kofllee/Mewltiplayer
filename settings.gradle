@@ -1,0 +1,18 @@
+pluginManagement {
+    repositories {
+        maven { url = 'https://maven.fabricmc.net/' }
+        gradlePluginPortal()
+        mavenCentral()
+    }
+}
+
+rootProject.name = 'Mewltiplayer'
+
+def selectedTarget = providers.gradleProperty('target').getOrElse('fabric-26.3')
+def supportedTargets = file('targets').listFiles().findAll { it.isDirectory() && new File(it, 'build.gradle').isFile() }.collect { it.name }.sort()
+if (!supportedTargets.contains(selectedTarget)) {
+    throw new GradleException("Unknown target '${selectedTarget}'. Available targets: ${supportedTargets.join(', ')}")
+}
+
+include ':core', ':platform'
+project(':platform').projectDir = file("targets/${selectedTarget}")

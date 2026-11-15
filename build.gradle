@@ -1,0 +1,17 @@
+allprojects {
+    group = rootProject.property('maven_group')
+    version = rootProject.property('mod_version')
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+tasks.register('showTarget') {
+    group = 'mewltiplayer'
+    description = 'Prints the active Minecraft / loader target.'
+    doLast {
+        println "Active target: ${providers.gradleProperty('target').getOrElse('fabric-26.3').get()}"
+        println 'Targets: fabric-26.3, fabric-1.21.1'
+    }
+}
