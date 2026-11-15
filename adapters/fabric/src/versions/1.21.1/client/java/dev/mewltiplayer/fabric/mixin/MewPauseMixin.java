@@ -1,6 +1,6 @@
 package dev.mewltiplayer.fabric.mixin;
 
-import dev.mewltiplayer.fabric.MewClientActions;
+import dev.mewltiplayer.fabric.MewMainScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.GameMenuScreen;
 import net.minecraft.client.gui.screen.Screen;
@@ -19,10 +19,7 @@ public abstract class MewPauseMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void mew$init(CallbackInfo ci) {
-        if (MinecraftClient.getInstance().getServer() == null) {
-            return;
-        }
-        addDrawableChild(ButtonWidget.builder(Text.literal("Copy Tailcat Invite"), button -> MewClientActions.share())
-                .dimensions(width - 180, 8, 170, 20).build());
+        addDrawableChild(ButtonWidget.builder(Text.translatable("mewltiplayer.menu"), button -> MinecraftClient.getInstance().setScreen(new MewMainScreen((Screen) (Object) this)))
+                .dimensions(width - 130, 8, 120, 20).build());
     }
 }

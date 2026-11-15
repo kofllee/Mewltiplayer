@@ -138,6 +138,10 @@ final class TailcatProcess implements AutoCloseable {
         }
     }
 
+    boolean isAlive() {
+        return !closed.get() && process.isAlive();
+    }
+
     @Override
     public void close() {
         if (!closed.compareAndSet(false, true)) {

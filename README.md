@@ -1,17 +1,22 @@
 # Mewltiplayer
 
-Minecraft Java multiplayer via Tailcat, without port forwarding or a separate VPN.
+Minecraft Java multiplayer powered by Tailcat, without port forwarding, a separate VPN, or an account.
 
-Work in progress. Fabric targets: Minecraft 26.3 and 1.21.1. Share a singleplayer world from the pause menu, copy its `tc...` invite, and join from Multiplayer using the invite as a server address. Dedicated servers can publish a persistent invite.
+Fabric builds: Minecraft 26.3 and 1.21.1.
+
+## Play
+
+Open a singleplayer world, then choose **Pause → Mewltiplayer → Share world**. Copy the invite and send it privately. Friends choose **Multiplayer → Mewltiplayer**, paste the `tc...` code, and connect. Codes also work in Minecraft's normal Direct Connect and saved server address fields.
+
+Use **Settings** to control LAN auto-sharing, notifications, retries, and DERP relays. Dedicated servers publish an invite in `config/mewltiplayer/invite.txt` and keep their identity across restarts. Delete `server-identity.json` while the server is stopped to revoke a permanent invitation.
 
 ## Build
 
 ```powershell
 .\dev.cmd fabric-26.3 :platform:build
 .\dev.cmd fabric-1.21.1 :platform:build
-.\helper.cmd build
 ```
 
-Requires JDK 25 and Fabric API. The Tailcat helper is currently a separate executable: place it at `config/mewltiplayer/mewltiplayer-helper.exe` on Windows, or supply its absolute path via `MEWLTIPLAYER_HELPER`. Native builds are not bundled yet.
+Requires JDK 25 and Go 1.27 to build. The resulting JAR includes Tailcat helpers for Windows, Linux, and macOS (x64/ARM64); players do not install Tailcat separately.
 
-Dedicated servers automatically create `config/mewltiplayer/server.json` and write the invite to `config/mewltiplayer/invite.txt`. Keep invitations private. Set `enabled` to `false` in `server.json` to disable sharing.
+Tailcat is BSD-3-Clause licensed; notices are bundled under `META-INF/licenses/`.

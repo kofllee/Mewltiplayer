@@ -16,17 +16,25 @@ public final class MewltiplayerClient implements ClientModInitializer {
             if (++ticks % 20 != 0) {
                 return;
             }
+            if (ticks % 60 == 0) {
+                MewRuntime.INSTANCE.poll();
+            }
             if (MewClientCompat.published()) {
-                if (!MewRuntime.INSTANCE.sharing() && System.nanoTime() >= nextRetry) {
+                if (MewRuntime.INSTANCE.settings().autoShare
+                        && !MewRuntime.INSTANCE.sharingPaused()
+                        && !MewRuntime.INSTANCE.sharing()
+                        && System.nanoTime() >= nextRetry) {
                     MewRuntime.INSTANCE.share(MewClientCompat.worldPort(), false).whenComplete((code, error) -> {
                         if (error != null) {
-                            nextRetry = System.nanoTime() + java.util.concurrent.TimeUnit.MINUTES.toNanos(1);
+                            nextRetry = System.nanoTime()
+                                    + java.util.concurrent.TimeUnit.SECONDS.toNanos(MewRuntime.INSTANCE.settings().retrySeconds);
                             MewClientCompat.execute(() -> MewClientCompat.notice("Tailcat sharing unavailable"));
                         }
                     });
                 }
             } else {
                 nextRetry = 0;
+                MewRuntime.INSTANCE.clearSharePause();
                 if (MewRuntime.INSTANCE.sharing()) {
                     MewRuntime.INSTANCE.stopShare();
                 }
@@ -34,6 +42,7 @@ public final class MewltiplayerClient implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> MewClientActions.disconnect());
         ClientLoginConnectionEvents.DISCONNECT.register((handler, client) -> MewClientActions.disconnect());
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> MewRuntime.INSTANCE.warmup());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> MewRuntime.INSTANCE.shutdown());
     }
 }

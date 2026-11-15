@@ -1,6 +1,10 @@
 package dev.mewltiplayer.fabric;
 
+import dev.mewltiplayer.core.MewSettings;
+import dev.mewltiplayer.core.transport.BridgeStatus;
+import dev.mewltiplayer.core.transport.BundledHelper;
 import dev.mewltiplayer.core.transport.ConnectionInfo;
+import dev.mewltiplayer.core.transport.NetworkStatus;
 import dev.mewltiplayer.core.transport.ProcessTailcatBridge;
 import net.fabricmc.loader.api.FabricLoader;
 
@@ -11,10 +15,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MewRuntime {
     public static final MewRuntime INSTANCE = new MewRuntime();
@@ -25,6 +29,8 @@ public final class MewRuntime {
         return thread;
     });
 
+    private final AtomicBoolean polling = new AtomicBoolean();
+    private volatile MewSettings settings;
     private ProcessTailcatBridge helper;
     private CompletableFuture<String> sharingFuture;
     private CompletableFuture<ConnectionInfo> joiningFuture;
@@ -32,13 +38,31 @@ public final class MewRuntime {
     private long joinGeneration;
     private int sharedPort;
     private String invite;
-    private boolean closed;
+    private String lastError = "";
+    private volatile BridgeStatus bridgeStatus = new BridgeStatus(false, false, 0, 0);
+    private volatile NetworkStatus networkStatus;
+    private volatile boolean helperOnline;
+    private volatile boolean closed;
+    private boolean sharingPaused;
 
     private MewRuntime() {
+        settings = MewSettings.load(configDirectory().resolve("settings.json"));
     }
 
     public Path configDirectory() {
         return FabricLoader.getInstance().getConfigDir().resolve("mewltiplayer");
+    }
+
+    public MewSettings settings() {
+        return settings.copy();
+    }
+
+    public synchronized void saveSettings(MewSettings updated) throws IOException {
+        updated.save(configDirectory().resolve("settings.json"));
+        settings = updated.copy();
+        if (!sharing() && !joining()) {
+            executor.execute(() -> closeHelper());
+        }
     }
 
     public synchronized String invite() {
@@ -49,8 +73,95 @@ public final class MewRuntime {
         return sharingFuture != null;
     }
 
+    public synchronized boolean sharingPaused() {
+        return sharingPaused;
+    }
+
+    public synchronized void pauseSharing() {
+        sharingPaused = true;
+        stopShare();
+    }
+
+    public synchronized void clearSharePause() {
+        sharingPaused = false;
+    }
+
     public synchronized boolean joining() {
         return joiningFuture != null;
+    }
+
+    public synchronized String error() {
+        return lastError;
+    }
+
+    public BridgeStatus status() {
+        return bridgeStatus;
+    }
+
+    public NetworkStatus network() {
+        return networkStatus;
+    }
+
+    public boolean helperOnline() {
+        return helperOnline;
+    }
+
+    public void warmup() {
+        if (!settings.autoStartHelper) {
+            return;
+        }
+        executor.execute(() -> {
+            try {
+                helper();
+            } catch (IOException error) {
+                recordError(error);
+            }
+        });
+    }
+
+    public void poll() {
+        if (closed || !helperOnline || !polling.compareAndSet(false, true)) {
+            return;
+        }
+        try {
+            executor.execute(() -> {
+                try {
+                    pollHelper();
+                } finally {
+                    polling.set(false);
+                }
+            });
+        } catch (java.util.concurrent.RejectedExecutionException ignored) {
+            polling.set(false);
+        }
+    }
+
+    private void pollHelper() {
+        if (helper == null) {
+            return;
+        }
+        if (!helper.isAlive()) {
+            synchronized (MewRuntime.this) {
+                helperOnline = false;
+                bridgeStatus = new BridgeStatus(false, false, 0, 0);
+                sharingFuture = null;
+                joiningFuture = null;
+                invite = null;
+                lastError = "Tailcat helper exited unexpectedly";
+            }
+            closeHelper();
+            return;
+        }
+        try {
+            bridgeStatus = helper.status().toCompletableFuture().get(12, TimeUnit.SECONDS);
+            if (joining() && bridgeStatus.isJoining()) {
+                networkStatus = helper.probe().toCompletableFuture().get(10, TimeUnit.SECONDS);
+            } else {
+                networkStatus = null;
+            }
+        } catch (Exception error) {
+            recordError(error);
+        }
     }
 
     public synchronized CompletableFuture<String> share(int port, boolean persistent) {
@@ -63,10 +174,11 @@ public final class MewRuntime {
         if (sharingFuture != null) {
             return sharedPort == port ? sharingFuture : failed(new IllegalStateException("Another world is already shared"));
         }
-
+        sharingPaused = false;
         long generation = ++shareGeneration;
         Path identity = persistent ? configDirectory().resolve("server-identity.json") : null;
         sharedPort = port;
+        lastError = "";
         CompletableFuture<String> result = new CompletableFuture<>();
         sharingFuture = result;
 
@@ -75,7 +187,7 @@ public final class MewRuntime {
                 String code = helper().share(port, identity).toCompletableFuture().get(55, TimeUnit.SECONDS);
                 synchronized (MewRuntime.this) {
                     if (shareGeneration != generation) {
-                        result.completeExceptionally(new CancellationException("World sharing stopped"));
+                        result.completeExceptionally(new CancellationException("Sharing cancelled"));
                         return;
                     }
                     if (persistent) {
@@ -87,7 +199,7 @@ public final class MewRuntime {
             } catch (Exception error) {
                 if (persistent && helper != null) {
                     try {
-                        helper.stopShare().toCompletableFuture().get(15, TimeUnit.SECONDS);
+                        helper.stopShare().toCompletableFuture().get(12, TimeUnit.SECONDS);
                     } catch (Exception ignored) {
                     }
                 }
@@ -95,12 +207,22 @@ public final class MewRuntime {
                     if (shareGeneration == generation) {
                         sharingFuture = null;
                         sharedPort = 0;
+                        recordError(error);
                     }
                 }
                 result.completeExceptionally(cause(error));
             }
         });
         return result;
+    }
+
+    public synchronized CompletableFuture<String> refreshInvite() {
+        if (sharedPort == 0 || sharingFuture == null) {
+            return failed(new IllegalStateException("No shared world"));
+        }
+        int port = sharedPort;
+        stopShare();
+        return share(port, false);
     }
 
     public synchronized CompletableFuture<ConnectionInfo> join(String code) {
@@ -111,6 +233,7 @@ public final class MewRuntime {
             return failed(new IllegalStateException("A Tailcat connection is already active"));
         }
         long generation = ++joinGeneration;
+        lastError = "";
         CompletableFuture<ConnectionInfo> result = new CompletableFuture<>();
         joiningFuture = result;
         executor.execute(() -> {
@@ -127,6 +250,7 @@ public final class MewRuntime {
                 synchronized (MewRuntime.this) {
                     if (joinGeneration == generation) {
                         joiningFuture = null;
+                        recordError(error);
                     }
                 }
                 result.completeExceptionally(cause(error));
@@ -146,8 +270,12 @@ public final class MewRuntime {
         }
         if (!executor.isShutdown()) {
             executor.execute(() -> {
-                if (helper != null) {
-                    helper.stopShare().toCompletableFuture().join();
+                if (helper != null && helper.isAlive()) {
+                    try {
+                        helper.stopShare().toCompletableFuture().get(12, TimeUnit.SECONDS);
+                    } catch (Exception error) {
+                        recordError(error);
+                    }
                 }
             });
         }
@@ -156,10 +284,15 @@ public final class MewRuntime {
     public synchronized void stopJoin() {
         ++joinGeneration;
         joiningFuture = null;
+        networkStatus = null;
         if (!executor.isShutdown()) {
             executor.execute(() -> {
-                if (helper != null) {
-                    helper.stopJoin().toCompletableFuture().join();
+                if (helper != null && helper.isAlive()) {
+                    try {
+                        helper.stopJoin().toCompletableFuture().get(12, TimeUnit.SECONDS);
+                    } catch (Exception error) {
+                        recordError(error);
+                    }
                 }
             });
         }
@@ -172,23 +305,29 @@ public final class MewRuntime {
         closed = true;
         stopShare();
         stopJoin();
-        executor.execute(() -> {
-            if (helper != null) {
-                helper.close();
-                helper = null;
-            }
-        });
+        executor.execute(this::closeHelper);
         executor.shutdown();
     }
 
+    private void closeHelper() {
+        if (helper != null) {
+            helper.close();
+            helper = null;
+        }
+        helperOnline = false;
+    }
+
     private ProcessTailcatBridge helper() throws IOException {
+        if (helper != null && !helper.isAlive()) {
+            closeHelper();
+        }
         if (helper == null) {
             String configured = System.getenv("MEWLTIPLAYER_HELPER");
-            String executable = System.getProperty("os.name").toLowerCase().contains("win")
-                    ? "mewltiplayer-helper.exe" : "mewltiplayer-helper";
-            Path path = configured != null && !configured.isEmpty()
-                    ? Paths.get(configured) : configDirectory().resolve(executable);
-            helper = new ProcessTailcatBridge(path);
+            Path executable = configured != null && !configured.isEmpty()
+                    ? Paths.get(configured) : BundledHelper.extract(configDirectory());
+            MewSettings current = settings;
+            helper = new ProcessTailcatBridge(executable, current.derpMapUrl, current.regionId);
+            helperOnline = true;
         }
         return helper;
     }
@@ -199,9 +338,15 @@ public final class MewRuntime {
         Files.write(file, code.getBytes(StandardCharsets.UTF_8));
     }
 
-    private static Throwable cause(Exception error) {
-        if (error instanceof java.util.concurrent.ExecutionException && error.getCause() != null) {
-            return error.getCause();
+    private synchronized void recordError(Throwable error) {
+        Throwable cause = cause(error);
+        lastError = cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage();
+    }
+
+    private static Throwable cause(Throwable error) {
+        while ((error instanceof java.util.concurrent.CompletionException
+                || error instanceof java.util.concurrent.ExecutionException) && error.getCause() != null) {
+            error = error.getCause();
         }
         return error;
     }

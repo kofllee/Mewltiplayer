@@ -117,6 +117,10 @@ public final class ProcessTailcatBridge implements TailcatBridge {
         });
     }
 
+    public boolean isAlive() {
+        return process.isAlive();
+    }
+
     @Override
     public void close() {
         process.close();

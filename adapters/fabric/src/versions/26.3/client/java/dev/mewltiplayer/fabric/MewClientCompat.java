@@ -4,12 +4,32 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.server.IntegratedServer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.TransferState;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
 
 import java.net.ServerSocket;
 import java.util.concurrent.CompletableFuture;
 
 public final class MewClientCompat {
     private MewClientCompat() {
+    }
+
+    public static boolean worldAvailable() {
+        return Minecraft.getInstance().getSingleplayerServer() != null;
+    }
+
+    public static String clipboard() {
+        return Minecraft.getInstance().keyboardHandler.getClipboard();
+    }
+
+    public static void connectToInvite(Screen parent, String code) {
+        Minecraft client = Minecraft.getInstance();
+        ServerData data = new ServerData("Mewltiplayer", code, ServerData.Type.OTHER);
+        ConnectScreen.startConnecting(parent, client, new ServerAddress("127.0.0.1", 25565),
+                data, false, new TransferState(java.util.Collections.emptyMap(), java.util.Collections.emptyMap(), false));
     }
 
     public static boolean published() {
@@ -33,8 +53,18 @@ public final class MewClientCompat {
                 result.complete(true);
                 return;
             }
-            try (ServerSocket socket = new ServerSocket(0)) {
-                result.complete(server.publishServer(MinecraftServer.MultiplayerScope.LAN, socket.getLocalPort()));
+            try {
+                for (int attempt = 0; attempt < 4; attempt++) {
+                    int port;
+                    try (ServerSocket socket = new ServerSocket(0)) {
+                        port = socket.getLocalPort();
+                    }
+                    if (server.publishServer(MinecraftServer.MultiplayerScope.LAN, port)) {
+                        result.complete(true);
+                        return;
+                    }
+                }
+                result.complete(false);
             } catch (Exception error) {
                 result.completeExceptionally(error);
             }
@@ -52,6 +82,9 @@ public final class MewClientCompat {
     }
 
     public static void notice(String text) {
+        if (!MewRuntime.INSTANCE.settings().notifications) {
+            return;
+        }
         Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
             client.player.sendSystemMessage(Component.literal("[Mewltiplayer] " + text));
