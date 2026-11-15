@@ -20,6 +20,7 @@ type request struct {
 	Port            int    `json:"port,omitempty"`
 	Code            string `json:"code,omitempty"`
 	DERPMapURL      string `json:"derpMapUrl,omitempty"`
+	DERPMapJSON     string `json:"derpMapJson,omitempty"`
 	RegionID        int    `json:"regionId,omitempty"`
 	IdentityFile    string `json:"identityFile,omitempty"`
 }
@@ -96,13 +97,13 @@ func (s *sessions) handle(req request) response {
 	case "ping":
 		return response{OK: true}
 	case "share":
-		code, err := s.startShare(req.Port, req.DERPMapURL, req.RegionID, req.IdentityFile)
+		code, err := s.startShareMap(req.Port, req.DERPMapURL, req.DERPMapJSON, req.RegionID, req.IdentityFile)
 		if err != "" {
 			return response{Error: err}
 		}
 		return response{OK: true, Code: code}
 	case "join":
-		port, err := s.startJoin(req.Code, req.DERPMapURL)
+		port, err := s.startJoinMap(req.Code, req.DERPMapURL, req.DERPMapJSON)
 		if err != "" {
 			return response{Error: err}
 		}

@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strconv"
 	"sync"
@@ -21,15 +24,17 @@ type sessions struct {
 }
 
 type sharedServer struct {
-	server *tailcat.Server
-	pipes  *pipeGroup
+	server    *tailcat.Server
+	pipes     *pipeGroup
+	mapServer *httptest.Server
 }
 
 type joinedServer struct {
-	client   *tailcat.Client
-	listener net.Listener
-	cancel   context.CancelFunc
-	pipes    *pipeGroup
+	client    *tailcat.Client
+	mapServer *httptest.Server
+	listener  net.Listener
+	cancel    context.CancelFunc
+	pipes     *pipeGroup
 }
 
 type pipeGroup struct {
@@ -97,7 +102,35 @@ func validDERPMapURL(address string) bool {
 	return err == nil && (parsed.Scheme == "https" || parsed.Scheme == "http") && parsed.Host != "" && parsed.User == nil
 }
 
+// Existing entrypoint remains for transport tests; the IPC also accepts inline JSON maps.
 func (s *sessions) startShare(port int, derpMapURL string, regionID int, identityFile string) (string, string) {
+	return s.startShareMap(port, derpMapURL, "", regionID, identityFile)
+}
+
+func localMap(jsonMap string) (*httptest.Server, string, bool) {
+	if jsonMap == "" {
+		return nil, "", true
+	}
+	if len(jsonMap) > 262144 {
+		return nil, "", false
+	}
+	var dm tailcfg.DERPMap
+	if err := json.Unmarshal([]byte(jsonMap), &dm); err != nil || len(dm.Regions) == 0 {
+		return nil, "", false
+	}
+	for id, region := range dm.Regions {
+		if id < 1 || region == nil || len(region.Nodes) == 0 {
+			return nil, "", false
+		}
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(jsonMap))
+	}))
+	return server, server.URL, true
+}
+
+func (s *sessions) startShareMap(port int, derpMapURL, derpMapJSON string, regionID int, identityFile string) (string, string) {
 	if s.share != nil {
 		return "", "already_sharing"
 	}
@@ -108,6 +141,18 @@ func (s *sessions) startShare(port int, derpMapURL string, regionID int, identit
 		return "", "invalid_network_settings"
 	}
 
+	mapServer, localURL, ok := localMap(derpMapJSON)
+	if !ok || (derpMapJSON != "" && derpMapURL != "") {
+		return "", "invalid_network_settings"
+	}
+	if mapServer != nil {
+		derpMapURL = localURL
+		defer func() {
+			if mapServer != nil {
+				mapServer.Close()
+			}
+		}()
+	}
 	private, preshared, err := loadIdentity(identityFile)
 	if err != nil {
 		return "", "identity_unavailable"
@@ -150,11 +195,16 @@ func (s *sessions) startShare(port int, derpMapURL string, regionID int, identit
 			return "", "identity_unavailable"
 		}
 	}
-	s.share = &sharedServer{server: server, pipes: pipes}
+	s.share = &sharedServer{server: server, pipes: pipes, mapServer: mapServer}
+	mapServer = nil
 	return string(code), ""
 }
 
 func (s *sessions) startJoin(code, derpMapURL string) (int, string) {
+	return s.startJoinMap(code, derpMapURL, "")
+}
+
+func (s *sessions) startJoinMap(code, derpMapURL, derpMapJSON string) (int, string) {
 	if s.join != nil {
 		return 0, "already_joined"
 	}
@@ -165,14 +215,24 @@ func (s *sessions) startJoin(code, derpMapURL string) (int, string) {
 		return 0, "invalid_invite"
 	}
 
+	mapServer, localURL, ok := localMap(derpMapJSON)
+	if !ok || (derpMapJSON != "" && derpMapURL != "") {
+		return 0, "invalid_network_settings"
+	}
+	if mapServer != nil {
+		derpMapURL = localURL
+	}
 	client := &tailcat.Client{Server: tailcat.Addr(code), DERPMapURL: derpMapURL, Logf: func(string, ...any) {}}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		client.Close()
+		if mapServer != nil {
+			mapServer.Close()
+		}
 		return 0, "local_listener_failed"
 	}
 	sessionCtx, stop := context.WithCancel(context.Background())
-	joined := &joinedServer{client: client, listener: listener, cancel: stop, pipes: newPipeGroup()}
+	joined := &joinedServer{client: client, mapServer: mapServer, listener: listener, cancel: stop, pipes: newPipeGroup()}
 	s.join = joined
 	go joined.accept(sessionCtx)
 	return listener.Addr().(*net.TCPAddr).Port, ""
@@ -218,6 +278,9 @@ func (s *sessions) stopShare() {
 	}
 	s.share.pipes.close()
 	s.share.server.Close()
+	if s.share.mapServer != nil {
+		s.share.mapServer.Close()
+	}
 	s.share = nil
 }
 
@@ -229,6 +292,9 @@ func (s *sessions) stopJoin() {
 	s.join.listener.Close()
 	s.join.pipes.close()
 	s.join.client.Close()
+	if s.join.mapServer != nil {
+		s.join.mapServer.Close()
+	}
 	s.join = nil
 }
 

@@ -2,7 +2,8 @@ package dev.mewltiplayer.core;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
@@ -14,21 +15,33 @@ import java.nio.file.StandardCopyOption;
 
 public final class MewSettings {
     private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
+    public static final String DEFAULT_MAP = "https://tailcat.dev/derpmap.json";
+    public static final String NEW = "new";
+    public static final String WORLD = "world";
+    public static final String GLOBAL = "global";
+    public static final String AUTO = "auto";
+    public static final String MAP = "map";
+    public static final String URL = "url";
 
-    public int regionId;
+    public String invitationMode = NEW;
+    public String derpMode = AUTO;
+    public String derpMapJson = "";
     public String derpMapUrl = "";
+    public int regionId;
 
     public static MewSettings load(Path file) {
-        if (!Files.isRegularFile(file)) {
-            return new MewSettings();
-        }
+        if (!Files.isRegularFile(file)) return new MewSettings();
         try (Reader reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
-            MewSettings settings = JSON.fromJson(reader, MewSettings.class);
-            if (settings == null) {
-                throw new IOException("Empty settings file");
+            JsonElement document = JsonParser.parseReader(reader);
+            MewSettings result = JSON.fromJson(document, MewSettings.class);
+            if (result == null) throw new IOException("Empty settings file");
+            // Older configurations only stored derpMapUrl; infer their old mode.
+            if (!document.getAsJsonObject().has("derpMode")) {
+                result.derpMode = result.derpMapUrl == null || result.derpMapUrl.isEmpty() ? AUTO : URL;
             }
-            settings.validate();
-            return settings;
+            if (!document.getAsJsonObject().has("invitationMode")) result.invitationMode = NEW;
+            result.validate();
+            return result;
         } catch (Exception error) {
             System.err.println("[Mewltiplayer] Invalid settings; using defaults: " + error.getMessage());
             return new MewSettings();
@@ -53,15 +66,28 @@ public final class MewSettings {
         }
     }
 
+    public String activeMapUrl() {
+        return URL.equals(derpMode) ? derpMapUrl : "";
+    }
+
+    public String activeMapJson() {
+        return MAP.equals(derpMode) ? derpMapJson : "";
+    }
+
     public void validate() {
-        if (regionId < 0 || regionId > 65535) {
-            throw new IllegalArgumentException("Invalid DERP region");
+        if (!NEW.equals(invitationMode) && !WORLD.equals(invitationMode) && !GLOBAL.equals(invitationMode)) {
+            throw new IllegalArgumentException("Invalid invitation mode");
         }
-        if (derpMapUrl == null) {
-            derpMapUrl = "";
+        if (!AUTO.equals(derpMode) && !MAP.equals(derpMode) && !URL.equals(derpMode)) {
+            throw new IllegalArgumentException("Invalid DERP mode");
         }
-        if (derpMapUrl.length() > 1024) {
-            throw new IllegalArgumentException("DERP map URL is too long");
+        if (regionId < 0 || regionId > 65535) throw new IllegalArgumentException("Invalid DERP region");
+        if (derpMapUrl == null) derpMapUrl = "";
+        if (derpMapJson == null) derpMapJson = "";
+        if (derpMapUrl.length() > 1024) throw new IllegalArgumentException("DERP map URL is too long");
+        if (derpMapJson.length() > 262144) throw new IllegalArgumentException("DERP map is too large");
+        if (URL.equals(derpMode) && derpMapUrl.isEmpty()) {
+            throw new IllegalArgumentException("Enter a DERP map URL");
         }
         if (!derpMapUrl.isEmpty()) {
             URI uri = URI.create(derpMapUrl);
@@ -70,12 +96,19 @@ public final class MewSettings {
                 throw new IllegalArgumentException("Custom DERP map requires an HTTPS URL");
             }
         }
+        if (MAP.equals(derpMode) && derpMapJson.isEmpty()) {
+            throw new IllegalArgumentException("Paste a DERP map first");
+        }
+        if (!derpMapJson.isEmpty()) DerpRegions.parse(derpMapJson);
     }
 
     public MewSettings copy() {
-        MewSettings value = new MewSettings();
-        value.regionId = regionId;
-        value.derpMapUrl = derpMapUrl;
-        return value;
+        MewSettings result = new MewSettings();
+        result.invitationMode = invitationMode;
+        result.derpMode = derpMode;
+        result.derpMapJson = derpMapJson;
+        result.derpMapUrl = derpMapUrl;
+        result.regionId = regionId;
+        return result;
     }
 }

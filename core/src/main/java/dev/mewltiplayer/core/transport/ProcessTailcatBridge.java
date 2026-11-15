@@ -17,13 +17,18 @@ import java.util.concurrent.TimeoutException;
 public final class ProcessTailcatBridge implements TailcatBridge {
     private final TailcatProcess process;
     private final String derpMapUrl;
+    private final String derpMapJson;
     private final int regionId;
 
     public ProcessTailcatBridge(Path helperExecutable) throws IOException {
-        this(helperExecutable, "", 0);
+        this(helperExecutable, "", "", 0);
     }
 
     public ProcessTailcatBridge(Path helperExecutable, String derpMapUrl, int regionId) throws IOException {
+        this(helperExecutable, derpMapUrl, "", regionId);
+    }
+
+    public ProcessTailcatBridge(Path helperExecutable, String derpMapUrl, String derpMapJson, int regionId) throws IOException {
         Objects.requireNonNull(helperExecutable, "helperExecutable");
         if (!Files.isRegularFile(helperExecutable)) {
             throw new IOException("Tailcat helper not found: " + helperExecutable);
@@ -31,7 +36,11 @@ public final class ProcessTailcatBridge implements TailcatBridge {
         if (regionId < 0 || !validUrl(derpMapUrl)) {
             throw new IllegalArgumentException("Invalid Tailcat network settings");
         }
+        if (derpMapJson != null && !derpMapJson.isEmpty() && derpMapJson.length() > 262144) {
+            throw new IllegalArgumentException("DERP map too large");
+        }
         this.derpMapUrl = derpMapUrl == null ? "" : derpMapUrl;
+        this.derpMapJson = derpMapJson == null ? "" : derpMapJson;
         this.regionId = regionId;
         process = new TailcatProcess(Collections.singletonList(helperExecutable.toAbsolutePath().toString()));
         try {
@@ -130,6 +139,9 @@ public final class ProcessTailcatBridge implements TailcatBridge {
         JsonObject args = new JsonObject();
         if (!derpMapUrl.isEmpty()) {
             args.addProperty("derpMapUrl", derpMapUrl);
+        }
+        if (!derpMapJson.isEmpty()) {
+            args.addProperty("derpMapJson", derpMapJson);
         }
         if (regionId > 0) {
             args.addProperty("regionId", regionId);
