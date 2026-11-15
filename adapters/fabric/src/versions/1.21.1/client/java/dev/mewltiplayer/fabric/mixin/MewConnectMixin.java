@@ -32,7 +32,7 @@ public abstract class MewConnectMixin {
                 MewClientActions.disconnect();
                 return;
             }
-            ServerInfo tunnel = new ServerInfo(serverInfo.name, serverInfo.address, ServerInfo.ServerType.LAN);
+            ServerInfo tunnel = new ServerInfo(serverInfo.name, InviteCode.localAddress(port), ServerInfo.ServerType.LAN);
             tunnel.setResourcePackPolicy(serverInfo.getResourcePackPolicy());
             ConnectScreen.connect(parent, client, new ServerAddress("127.0.0.1", port), tunnel, quickPlay, cookies);
         }, error -> {

@@ -11,4 +11,11 @@ public final class InviteCode {
     public static boolean looksLikeTailcatCode(String input) {
         return input != null && CANDIDATE.matcher(input.trim()).matches();
     }
+
+    public static String localAddress(int port) {
+        if (port < 1 || port > 65535) {
+            throw new IllegalArgumentException("Invalid local port");
+        }
+        return "127.0.0.1:" + port;
+    }
 }

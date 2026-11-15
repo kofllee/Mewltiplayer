@@ -160,3 +160,13 @@ func TestPersistentInvitation(t *testing.T) {
 		t.Fatal("dedicated invitation changed after restart")
 	}
 }
+
+func TestJoinCreatesListenerBeforeNetworkDial(t *testing.T) {
+	const example = "tcomFwWCCcjS5nKNqAod034nWoJZW0LZqDhhC8U_dKdnDRYQ8uNGFpGQEu"
+	session := &sessions{}
+	defer session.close()
+	port, failure := session.startJoin(example, "")
+	if failure != "" || port <= 0 {
+		t.Fatalf("local listener not created: port=%d error=%s", port, failure)
+	}
+}

@@ -166,12 +166,6 @@ func (s *sessions) startJoin(code, derpMapURL string) (int, string) {
 	}
 
 	client := &tailcat.Client{Server: tailcat.Addr(code), DERPMapURL: derpMapURL, Logf: func(string, ...any) {}}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	if _, err := client.Ping(ctx); err != nil {
-		client.Close()
-		return 0, "connection_failed"
-	}
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		client.Close()
