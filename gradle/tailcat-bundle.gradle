@@ -1,0 +1,60 @@
+import java.security.MessageDigest
+
+def helperSource = rootProject.file('helper/tailcat')
+def helperOutput = layout.buildDirectory.dir('generated/mewltiplayer-helper')
+def toolchainGo = rootProject.file('.toolchains/go/bin/go.exe')
+def goCommand = toolchainGo.isFile() ? toolchainGo.absolutePath : 'go'
+def helperPlatforms = [
+    'windows-amd64': ['windows', 'amd64'],
+    'windows-arm64': ['windows', 'arm64'],
+    'linux-amd64': ['linux', 'amd64'],
+    'linux-arm64': ['linux', 'arm64'],
+    'darwin-amd64': ['darwin', 'amd64'],
+    'darwin-arm64': ['darwin', 'arm64']
+]
+
+tasks.register('bundleTailcat') {
+    group = 'build'
+    description = 'Compiles Tailcat helpers for supported operating systems and includes them in the mod.'
+    inputs.files(fileTree(helperSource) { include '**/*.go', 'go.mod', 'go.sum' })
+    inputs.property('nativeFormatVersion', 'windowsgui-1')
+    outputs.dir(helperOutput)
+
+    doLast {
+        def base = helperOutput.get().asFile
+        helperPlatforms.each { platform, target ->
+            def folder = new File(base, "mewltiplayer/native/${platform}")
+            folder.mkdirs()
+            def filename = target[0] == 'windows' ? 'mewltiplayer-helper.exe' : 'mewltiplayer-helper'
+            def output = new File(folder, filename)
+            def linkerFlags = target[0] == 'windows' ? '-s -w -H=windowsgui' : '-s -w'
+            def builder = new ProcessBuilder(goCommand, 'build', '-trimpath', "-ldflags=${linkerFlags}", '-o', output.absolutePath, '.')
+            builder.directory(helperSource)
+            builder.environment().putAll([GOOS: target[0], GOARCH: target[1], CGO_ENABLED: '0'])
+            builder.inheritIO()
+            def process = builder.start()
+            if (process.waitFor() != 0) {
+                throw new GradleException("Failed to build Tailcat helper for ${platform}")
+            }
+            def checksum = MessageDigest.getInstance('SHA-256').digest(output.bytes).encodeHex().toString()
+            new File(folder, 'sha256.txt').text = checksum + '\n'
+        }
+    }
+}
+
+sourceSets.main.resources.srcDir(helperOutput)
+
+tasks.named('processResources') {
+    dependsOn tasks.named('bundleTailcat')
+}
+
+tasks.named('sourcesJar', Jar) {
+    dependsOn tasks.named('bundleTailcat')
+    exclude 'mewltiplayer/native/**'
+}
+
+tasks.named('jar', Jar) {
+    from(rootProject.file('licenses')) {
+        into 'META-INF/licenses'
+    }
+}

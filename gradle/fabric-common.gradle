@@ -79,3 +79,5 @@ java {
 tasks.named('sourcesJar', Jar) {
     from(project(':core').sourceSets.main.allSource)
 }
+
+apply from: rootProject.file('gradle/tailcat-bundle.gradle')
