@@ -19,6 +19,7 @@ public final class MewltiplayerMod implements ModInitializer {
     @Override
     public void onInitialize() {
         MewltiplayerCore.initialize();
+        MewDedicatedCommands.register();
         ServerLifecycleEvents.SERVER_STARTED.register(this::started);
         ServerLifecycleEvents.SERVER_STOPPING.register(this::stopping);
     }
