@@ -4,8 +4,7 @@
   "package": "dev.mewltiplayer.fabric.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "MewPauseMixin",
-    "MewEntryMixin",
+    "MewLanMixin",
     "MewDirectConnectMixin",
     "MewSavedServerMixin",
     "MewConnectMixin"

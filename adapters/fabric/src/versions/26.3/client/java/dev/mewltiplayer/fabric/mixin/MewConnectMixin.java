@@ -34,7 +34,7 @@ public abstract class MewConnectMixin {
             }
             ServerData local = new ServerData(serverData.name, "127.0.0.1:" + port, serverData.type());
             local.setResourcePackStatus(serverData.getResourcePackStatus());
-            ConnectScreen.startConnecting(parent, client, new ServerAddress("127.0.0.1", port), local, quickPlay, transfer);
+            ConnectScreen.startConnecting(parent, client, new ServerAddress("127.0.0.1", port), local, quickPlay, null);
         }, error -> {
             if (client.gui.screen() == screen) {
                 screen.fail(error);

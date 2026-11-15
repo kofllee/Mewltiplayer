@@ -15,10 +15,6 @@ import java.nio.file.StandardCopyOption;
 public final class MewSettings {
     private static final Gson JSON = new GsonBuilder().setPrettyPrinting().create();
 
-    public boolean autoShare = true;
-    public boolean notifications = true;
-    public boolean autoStartHelper = true;
-    public int retrySeconds = 30;
     public int regionId;
     public String derpMapUrl = "";
 
@@ -58,9 +54,6 @@ public final class MewSettings {
     }
 
     public void validate() {
-        if (retrySeconds < 5 || retrySeconds > 300) {
-            throw new IllegalArgumentException("Retry interval must be 5-300 seconds");
-        }
         if (regionId < 0 || regionId > 65535) {
             throw new IllegalArgumentException("Invalid DERP region");
         }
@@ -81,10 +74,6 @@ public final class MewSettings {
 
     public MewSettings copy() {
         MewSettings value = new MewSettings();
-        value.autoShare = autoShare;
-        value.notifications = notifications;
-        value.autoStartHelper = autoStartHelper;
-        value.retrySeconds = retrySeconds;
         value.regionId = regionId;
         value.derpMapUrl = derpMapUrl;
         return value;

@@ -43,7 +43,7 @@ public final class MewRuntime {
     private volatile NetworkStatus networkStatus;
     private volatile boolean helperOnline;
     private volatile boolean closed;
-    private boolean sharingPaused;
+    private volatile boolean onlineSharingEnabled;
 
     private MewRuntime() {
         settings = MewSettings.load(configDirectory().resolve("settings.json"));
@@ -73,17 +73,18 @@ public final class MewRuntime {
         return sharingFuture != null;
     }
 
-    public synchronized boolean sharingPaused() {
-        return sharingPaused;
+    public boolean onlineSharingEnabled() {
+        return onlineSharingEnabled;
     }
 
-    public synchronized void pauseSharing() {
-        sharingPaused = true;
-        stopShare();
-    }
-
-    public synchronized void clearSharePause() {
-        sharingPaused = false;
+    public synchronized void setOnlineSharingEnabled(boolean enabled) {
+        if (onlineSharingEnabled == enabled) {
+            return;
+        }
+        onlineSharingEnabled = enabled;
+        if (!enabled) {
+            stopShare();
+        }
     }
 
     public synchronized boolean joining() {
@@ -104,19 +105,6 @@ public final class MewRuntime {
 
     public boolean helperOnline() {
         return helperOnline;
-    }
-
-    public void warmup() {
-        if (!settings.autoStartHelper) {
-            return;
-        }
-        executor.execute(() -> {
-            try {
-                helper();
-            } catch (IOException error) {
-                recordError(error);
-            }
-        });
     }
 
     public void poll() {
@@ -174,7 +162,6 @@ public final class MewRuntime {
         if (sharingFuture != null) {
             return sharedPort == port ? sharingFuture : failed(new IllegalStateException("Another world is already shared"));
         }
-        sharingPaused = false;
         long generation = ++shareGeneration;
         Path identity = persistent ? configDirectory().resolve("server-identity.json") : null;
         sharedPort = port;
@@ -214,15 +201,6 @@ public final class MewRuntime {
             }
         });
         return result;
-    }
-
-    public synchronized CompletableFuture<String> refreshInvite() {
-        if (sharedPort == 0 || sharingFuture == null) {
-            return failed(new IllegalStateException("No shared world"));
-        }
-        int port = sharedPort;
-        stopShare();
-        return share(port, false);
     }
 
     public synchronized CompletableFuture<ConnectionInfo> join(String code) {

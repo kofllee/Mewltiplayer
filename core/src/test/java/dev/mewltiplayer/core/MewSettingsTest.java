@@ -11,17 +11,11 @@ final class MewSettingsTest {
     void loadsDefaultsAndPersistsChoices() throws Exception {
         Path file = Files.createTempDirectory("mew-settings").resolve("settings.json");
         MewSettings defaults = MewSettings.load(file);
-        assertTrue(defaults.autoShare);
-        assertTrue(defaults.notifications);
-        defaults.autoShare = false;
-        defaults.retrySeconds = 60;
         defaults.regionId = 302;
         defaults.derpMapUrl = "https://example.com/map.json";
         defaults.save(file);
 
         MewSettings restored = MewSettings.load(file);
-        assertFalse(restored.autoShare);
-        assertEquals(60, restored.retrySeconds);
         assertEquals(302, restored.regionId);
         assertEquals(defaults.derpMapUrl, restored.derpMapUrl);
     }
@@ -34,7 +28,7 @@ final class MewSettingsTest {
         settings.derpMapUrl = "http://example.com/derp.json";
         assertThrows(IllegalArgumentException.class, settings::validate);
         settings.derpMapUrl = "";
-        settings.retrySeconds = 0;
+        settings.regionId = -1;
         assertThrows(IllegalArgumentException.class, settings::validate);
     }
 }

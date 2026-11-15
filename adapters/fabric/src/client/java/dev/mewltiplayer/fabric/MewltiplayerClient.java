@@ -16,33 +16,37 @@ public final class MewltiplayerClient implements ClientModInitializer {
             if (++ticks % 20 != 0) {
                 return;
             }
+            MewRuntime runtime = MewRuntime.INSTANCE;
             if (ticks % 60 == 0) {
-                MewRuntime.INSTANCE.poll();
+                runtime.poll();
             }
-            if (MewClientCompat.published()) {
-                if (MewRuntime.INSTANCE.settings().autoShare
-                        && !MewRuntime.INSTANCE.sharingPaused()
-                        && !MewRuntime.INSTANCE.sharing()
-                        && System.nanoTime() >= nextRetry) {
-                    MewRuntime.INSTANCE.share(MewClientCompat.worldPort(), false).whenComplete((code, error) -> {
-                        if (error != null) {
-                            nextRetry = System.nanoTime()
-                                    + java.util.concurrent.TimeUnit.SECONDS.toNanos(MewRuntime.INSTANCE.settings().retrySeconds);
-                            MewClientCompat.execute(() -> MewClientCompat.notice("Tailcat sharing unavailable"));
+            if (!MewClientCompat.published()) {
+                nextRetry = 0;
+                if (runtime.onlineSharingEnabled()) {
+                    runtime.setOnlineSharingEnabled(false);
+                } else if (runtime.sharing()) {
+                    runtime.stopShare();
+                }
+                return;
+            }
+            if (!runtime.onlineSharingEnabled() || runtime.sharing() || System.nanoTime() < nextRetry) {
+                return;
+            }
+            runtime.share(MewClientCompat.worldPort(), false).whenComplete((invite, error) -> {
+                if (error == null) {
+                    MewClientCompat.execute(() -> {
+                        if (runtime.onlineSharingEnabled() && invite.equals(runtime.invite())) {
+                            MewClientCompat.copyInvite(invite);
                         }
                     });
+                } else {
+                    nextRetry = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(30);
+                    MewClientCompat.execute(() -> MewClientCompat.notice("mewltiplayer.shareFailed"));
                 }
-            } else {
-                nextRetry = 0;
-                MewRuntime.INSTANCE.clearSharePause();
-                if (MewRuntime.INSTANCE.sharing()) {
-                    MewRuntime.INSTANCE.stopShare();
-                }
-            }
+            });
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> MewClientActions.disconnect());
         ClientLoginConnectionEvents.DISCONNECT.register((handler, client) -> MewClientActions.disconnect());
-        ClientLifecycleEvents.CLIENT_STARTED.register(client -> MewRuntime.INSTANCE.warmup());
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> MewRuntime.INSTANCE.shutdown());
     }
 }

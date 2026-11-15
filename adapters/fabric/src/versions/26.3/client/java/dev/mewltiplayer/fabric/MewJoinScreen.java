@@ -1,34 +1,36 @@
 package dev.mewltiplayer.fabric;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 
 public final class MewJoinScreen extends Screen {
     private final Screen previous;
-    private Button status;
-    private Button cancel;
 
     public MewJoinScreen(Screen previous) {
-        super(Component.literal("Mewltiplayer"));
+        super(Component.translatable("mewltiplayer.connecting"));
         this.previous = previous;
     }
 
     @Override
     protected void init() {
-        status = addRenderableWidget(Button.builder(Component.literal("Connecting through Tailcat..."), button -> {})
-                .bounds(width / 2 - 150, height / 2 - 18, 300, 20).build());
-        status.active = false;
-        cancel = addRenderableWidget(Button.builder(Component.literal("Cancel"), button -> onClose())
-                .bounds(width / 2 - 100, height / 2 + 12, 200, 20).build());
+        addRenderableWidget(Button.builder(Component.translatable("gui.cancel"), button -> onClose())
+                .bounds(width / 2 - 100, height / 2 + 30, 200, 20).build());
+    }
+
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(graphics, mouseX, mouseY, delta);
+        graphics.centeredText(font, title, width / 2, height / 2 - 18, 0xffffffff);
     }
 
     public void fail(String error) {
-        if (status != null) {
-            status.setMessage(Component.literal(error.length() > 48 ? error.substring(0, 48) : error));
-            cancel.setMessage(Component.literal("Back"));
-        }
+        MewClientActions.disconnect();
+        Minecraft.getInstance().gui.setScreen(new DisconnectedScreen(
+                previous, Component.translatable("connect.failed"), Component.translatable("mewltiplayer.error." + error)));
     }
 
     @Override
