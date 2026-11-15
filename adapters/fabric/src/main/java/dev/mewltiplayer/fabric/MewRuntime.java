@@ -1,6 +1,7 @@
 package dev.mewltiplayer.fabric;
 
 import dev.mewltiplayer.core.MewSettings;
+import dev.mewltiplayer.core.MewInvitations;
 import dev.mewltiplayer.core.transport.BridgeStatus;
 import dev.mewltiplayer.core.transport.BundledHelper;
 import dev.mewltiplayer.core.transport.ConnectionInfo;
@@ -13,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Objects;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +39,7 @@ public final class MewRuntime {
     private long shareGeneration;
     private long joinGeneration;
     private int sharedPort;
+    private Path sharedIdentity;
     private String invite;
     private String lastError = "";
     private volatile BridgeStatus bridgeStatus = new BridgeStatus(false, false, 0, 0);
@@ -44,6 +47,7 @@ public final class MewRuntime {
     private volatile boolean helperOnline;
     private volatile boolean closed;
     private volatile boolean onlineSharingEnabled;
+    private volatile boolean helperNeedsRestart;
 
     private MewRuntime() {
         settings = MewSettings.load(configDirectory().resolve("settings.json"));
@@ -58,15 +62,46 @@ public final class MewRuntime {
     }
 
     public synchronized void saveSettings(MewSettings updated) throws IOException {
+        MewSettings previous = settings;
         updated.save(configDirectory().resolve("settings.json"));
         settings = updated.copy();
-        if (!sharing() && !joining()) {
-            executor.execute(() -> closeHelper());
+        if (previous.regionId != updated.regionId
+                || !previous.activeMapUrl().equals(updated.activeMapUrl())
+                || !previous.activeMapJson().equals(updated.activeMapJson())) {
+            helperNeedsRestart = true;
         }
+        // A settings change never disconnects the current Minecraft session.
+        if (helperNeedsRestart && !joining() && !sharing()) {
+            executor.execute(this::closeHelper);
+        }
+    }
+
+    public synchronized CompletableFuture<Void> resetInvitation(String mode, Path world, Path saves, boolean all) {
+        Path requestedIdentity = MewInvitations.identity(mode, world, configDirectory());
+        if (sharing() && (all || (requestedIdentity != null && requestedIdentity.equals(sharedIdentity)))) {
+            onlineSharingEnabled = false;
+            stopShare();
+        }
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        executor.execute(() -> {
+            try {
+                if (all) MewInvitations.resetAll(configDirectory(), saves);
+                else MewInvitations.reset(mode, world, configDirectory());
+                result.complete(null);
+            } catch (IOException error) {
+                result.completeExceptionally(error);
+            }
+        });
+        return result;
     }
 
     public synchronized String invite() {
         return invite;
+    }
+
+    public synchronized boolean isSharingMode(String mode, Path world) {
+        return sharingFuture != null
+                && Objects.equals(sharedIdentity, MewInvitations.identity(mode, world, configDirectory()));
     }
 
     public synchronized boolean sharing() {
@@ -152,7 +187,15 @@ public final class MewRuntime {
         }
     }
 
-    public synchronized CompletableFuture<String> share(int port, boolean persistent) {
+    public CompletableFuture<String> share(int port, boolean persistent) {
+        return shareInternal(port, persistent ? configDirectory().resolve("server-identity.json") : null, persistent);
+    }
+
+    public CompletableFuture<String> share(int port, Path identityFile) {
+        return shareInternal(port, identityFile, false);
+    }
+
+    private synchronized CompletableFuture<String> shareInternal(int port, Path identityFile, boolean dedicated) {
         if (port < 1 || port > 65535) {
             return failed(new IllegalArgumentException("Invalid Minecraft port"));
         }
@@ -163,28 +206,28 @@ public final class MewRuntime {
             return sharedPort == port ? sharingFuture : failed(new IllegalStateException("Another world is already shared"));
         }
         long generation = ++shareGeneration;
-        Path identity = persistent ? configDirectory().resolve("server-identity.json") : null;
         sharedPort = port;
+        sharedIdentity = identityFile;
         lastError = "";
         CompletableFuture<String> result = new CompletableFuture<>();
         sharingFuture = result;
 
         executor.execute(() -> {
             try {
-                String code = helper().share(port, identity).toCompletableFuture().get(55, TimeUnit.SECONDS);
+                String code = helper().share(port, identityFile).toCompletableFuture().get(55, TimeUnit.SECONDS);
                 synchronized (MewRuntime.this) {
                     if (shareGeneration != generation) {
                         result.completeExceptionally(new CancellationException("Sharing cancelled"));
                         return;
                     }
-                    if (persistent) {
+                    if (dedicated) {
                         writeInvite(code);
                     }
                     invite = code;
                     result.complete(code);
                 }
             } catch (Exception error) {
-                if (persistent && helper != null) {
+                if (dedicated && helper != null) {
                     try {
                         helper.stopShare().toCompletableFuture().get(12, TimeUnit.SECONDS);
                     } catch (Exception ignored) {
@@ -241,6 +284,7 @@ public final class MewRuntime {
         ++shareGeneration;
         sharingFuture = null;
         sharedPort = 0;
+        sharedIdentity = null;
         invite = null;
         try {
             Files.deleteIfExists(configDirectory().resolve("invite.txt"));
@@ -293,9 +337,11 @@ public final class MewRuntime {
             helper = null;
         }
         helperOnline = false;
+        helperNeedsRestart = false;
     }
 
     private ProcessTailcatBridge helper() throws IOException {
+        if (helperNeedsRestart && !joining() && helper != null) closeHelper();
         if (helper != null && !helper.isAlive()) {
             closeHelper();
         }
@@ -304,7 +350,7 @@ public final class MewRuntime {
             Path executable = configured != null && !configured.isEmpty()
                     ? Paths.get(configured) : BundledHelper.extract(configDirectory());
             MewSettings current = settings;
-            helper = new ProcessTailcatBridge(executable, current.derpMapUrl, current.regionId);
+            helper = new ProcessTailcatBridge(executable, current.activeMapUrl(), current.activeMapJson(), current.regionId);
             helperOnline = true;
         }
         return helper;
