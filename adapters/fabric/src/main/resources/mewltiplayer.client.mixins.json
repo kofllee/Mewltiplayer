@@ -7,7 +7,9 @@
     "MewLanMixin",
     "MewDirectConnectMixin",
     "MewSavedServerMixin",
-    "MewConnectMixin"
+    "MewConnectMixin",
+    "MewStatusMixin",
+    "MewChatAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

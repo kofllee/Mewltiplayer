@@ -12,7 +12,8 @@
   ],
   "entrypoints": {
     "main": ["dev.mewltiplayer.fabric.MewltiplayerMod"],
-    "client": ["dev.mewltiplayer.fabric.MewltiplayerClient"]
+    "client": ["dev.mewltiplayer.fabric.MewltiplayerClient"],
+    "modmenu": ["dev.mewltiplayer.fabric.MewModMenu"]
   },
   "depends": {
     "fabricloader": ">=${loader_version}",
