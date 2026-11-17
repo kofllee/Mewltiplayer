@@ -17,7 +17,7 @@ public final class MewErrors {
             error = error.getCause();
         }
         String message = String.valueOf(error.getMessage()).toLowerCase(Locale.ROOT);
-        if (message.contains("invalid_share_code")) {
+        if (message.contains("invalid_share_code") || message.contains("invalid_invite")) {
             return "Invalid share code (M101)";
         }
         if (message.contains("connection_failed") || message.contains("probe_failed")) {

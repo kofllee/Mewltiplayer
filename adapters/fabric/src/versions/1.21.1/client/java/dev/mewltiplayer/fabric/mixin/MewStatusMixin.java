@@ -35,11 +35,11 @@ public abstract class MewStatusMixin {
             if (result.favicon != null) {
                 try {
                     server.setFavicon(ServerInfo.validateFavicon(result.favicon));
-                    changed.run();
                 } catch (RuntimeException ignored) {
                     // Invalid favicon must not hide a reachable server.
                 }
             }
+            changed.run();
         }, error -> {
             server.label = Text.literal(MewErrors.describe(error));
             server.playerCountLabel = Text.empty();

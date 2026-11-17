@@ -9,6 +9,9 @@ final class MewErrorsTest {
     void reportsShortStableCodesWithoutSecrets() {
         assertEquals("Invalid share code (M101)",
                 MewErrors.describe(new IllegalStateException("Tailcat helper: invalid_share_code")));
+        assertEquals("Invalid share code (M101)",
+                MewErrors.describe(new IllegalStateException("Tailcat helper: invalid_invite")));
+        assertEquals("M101", MewErrors.code(new IOException("Tailcat helper: invalid_invite")));
         assertEquals("Could not reach host (M201)",
                 MewErrors.describe(new IllegalStateException("Tailcat helper: connection_failed")));
         assertEquals("Connection timed out (M203)",

@@ -37,11 +37,11 @@ public abstract class MewStatusMixin {
             if (result.favicon != null) {
                 try {
                     server.setIconBytes(ServerData.validateIcon(result.favicon));
-                    changed.run();
                 } catch (RuntimeException ignored) {
                     // Invalid favicon must not hide a reachable server.
                 }
             }
+            changed.run();
         }, error -> {
             server.motd = Component.literal(MewErrors.describe(error));
             server.status = Component.empty();
