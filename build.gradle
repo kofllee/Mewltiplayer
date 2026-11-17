@@ -13,6 +13,6 @@ tasks.register('showTarget') {
     description = 'Prints the active Minecraft / loader target.'
     doLast {
         println "Active target: ${providers.gradleProperty('target').getOrElse('fabric-26.3').get()}"
-        println 'Targets: fabric-26.3, fabric-1.21.1'
+        println "Targets: ${file('targets').listFiles().findAll { new File(it, 'build.gradle').isFile() }.collect { it.name }.sort().join(', ')}"
     }
 }

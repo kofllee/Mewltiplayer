@@ -1,0 +1,73 @@
+def targetProperties = new Properties()
+project.file('gradle.properties').withInputStream { targetProperties.load(it) }
+targetProperties.each { key, value -> project.ext.set(key.toString(), value.toString()) }
+
+base {
+    archivesName = "mewltiplayer-${project.minecraft_version}-forge"
+}
+
+legacyForge {
+    version = project.forge_version
+    runs {
+        client { client() }
+        server { server(); programArgument '--nogui' }
+    }
+    mods {
+        mewltiplayer {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+sourceSets.main {
+    java.srcDir rootProject.file('adapters/forge/src/main/java')
+    java.srcDir rootProject.file("adapters/forge/src/versions/${project.minecraft_version}/main/java")
+    java.srcDir rootProject.file('adapters/forge/src/client/java')
+    java.srcDir rootProject.file("adapters/forge/src/versions/${project.minecraft_version}/client/java")
+    resources.srcDir rootProject.file('adapters/forge/src/main/resources')
+}
+
+dependencies {
+    implementation(project(':core')) {
+        exclude group: 'com.google.code.gson', module: 'gson'
+    }
+    additionalRuntimeClasspath(project(':core')) {
+        exclude group: 'com.google.code.gson', module: 'gson'
+    }
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+}
+
+mixin {
+    add sourceSets.main, 'mewltiplayer.refmap.json'
+    config 'mewltiplayer.client.mixins.json'
+}
+
+tasks.named('processResources') {
+    inputs.property('modVersion', project.version)
+    inputs.property('minecraftVersion', project.minecraft_version)
+    filesMatching('META-INF/mods.toml') {
+        expand(version: project.version, minecraft_version: project.minecraft_version)
+    }
+    from(rootProject.file('adapters/fabric/src/main/resources')) {
+        exclude 'fabric.mod.json', 'mewltiplayer.client.mixins.json'
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = Integer.parseInt(project.java_version.toString())
+    options.encoding = 'UTF-8'
+}
+
+java {
+    sourceCompatibility = JavaVersion.toVersion(project.java_version)
+    targetCompatibility = JavaVersion.toVersion(project.java_version)
+    withSourcesJar()
+}
+
+tasks.named('jar', Jar) {
+    manifest.attributes('MixinConfigs': 'mewltiplayer.client.mixins.json')
+    from(project(':core').sourceSets.main.output)
+    from(rootProject.file('licenses')) { into 'META-INF/licenses' }
+}
+
+apply from: rootProject.file('gradle/tailcat-bundle.gradle')

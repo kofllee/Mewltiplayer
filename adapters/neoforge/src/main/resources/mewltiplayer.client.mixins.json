@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.mewltiplayer.neoforge.mixin",
+  "compatibilityLevel": "JAVA_${mixin_compatibility}",
+  "client": [
+    "MewLanMixin",
+    "MewDirectConnectMixin",
+    "MewSavedServerMixin",
+    "MewConnectMixin",
+    "MewStatusMixin",
+    "MewChatAccessor"
+  ],
+  "injectors": { "defaultRequire": 1 }
+}

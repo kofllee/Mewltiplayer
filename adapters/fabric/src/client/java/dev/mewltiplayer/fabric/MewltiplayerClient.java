@@ -19,6 +19,7 @@ public final class MewltiplayerClient implements ClientModInitializer {
     private volatile long nextRetry;
     private boolean startingNotified;
     private boolean failureNotified;
+    private boolean wasPublished;
     private ConnectionMode lastRoute;
 
     @Override
@@ -34,6 +35,11 @@ public final class MewltiplayerClient implements ClientModInitializer {
             }
             if (ticks % 20 != 0) return;
             if (ticks % 60 == 0) runtime.poll();
+            boolean published = MewClientCompat.published();
+            if (published && !wasPublished) {
+                runtime.setOnlineSharingEnabled(MewWorldSettings.shareViaTailcat(MewClientCompat.worldDirectory()));
+            }
+            wasPublished = published;
 
             // A route is determined by the Tailcat probe after the Minecraft login succeeds.
             if (runtime.joining() && client.player != null) {
@@ -46,12 +52,12 @@ public final class MewltiplayerClient implements ClientModInitializer {
                 }
             }
 
-            if (!MewClientCompat.published() || !runtime.onlineSharingEnabled()) {
+            if (!published || !runtime.onlineSharingEnabled()) {
                 MewClientCompat.endSharing();
                 nextRetry = 0;
                 startingNotified = false;
                 failureNotified = false;
-                if (!MewClientCompat.published()) {
+                if (!published) {
                     if (runtime.onlineSharingEnabled()) runtime.setOnlineSharingEnabled(false);
                     else if (runtime.sharing()) runtime.stopShare();
                 }

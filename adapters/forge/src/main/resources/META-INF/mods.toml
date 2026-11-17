@@ -1,0 +1,18 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+
+[[mods]]
+modId="mewltiplayer"
+version="${version}"
+displayName="Mewltiplayer"
+authors="Mewltiplayer contributors"
+description="Share Minecraft worlds with friends using Tailcat-powered connections."
+logoFile="assets/mewltiplayer/icon.png"
+
+[[dependencies.mewltiplayer]]
+modId="minecraft"
+mandatory=true
+versionRange="[${minecraft_version}]"
+ordering="NONE"
+side="BOTH"

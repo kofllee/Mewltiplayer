@@ -60,9 +60,4 @@ public abstract class MewLanMixin extends Screen {
                 Text.translatable(mew$enabled ? "options.on" : "options.off")
                         .formatted(mew$enabled ? Formatting.GREEN : Formatting.RED));
     }
-
-    @Inject(method = "method_19851", at = @At("TAIL"))
-    private void mew$published(IntegratedServer server, ButtonWidget startButton, CallbackInfo ci) {
-        MewRuntime.INSTANCE.setOnlineSharingEnabled(mew$enabled && server.isRemote());
-    }
 }
