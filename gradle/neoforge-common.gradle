@@ -64,7 +64,6 @@ java {
 
 tasks.named('jar', Jar) {
     from(project(':core').sourceSets.main.output)
-    from(rootProject.file('licenses')) { into 'META-INF/licenses' }
 }
 
 apply from: rootProject.file('gradle/tailcat-bundle.gradle')
