@@ -42,9 +42,11 @@ tasks.named('processResources') {
     inputs.property('modVersion', project.version)
     inputs.property('minecraftVersion', project.minecraft_version)
     inputs.property('mixinCompatibility', project.java_version)
+    inputs.property('iconProperty', project.minecraft_version == '26.3' ? 'iconFile' : 'logoFile')
     filesMatching(['META-INF/neoforge.mods.toml', 'mewltiplayer.client.mixins.json']) {
         expand(version: project.version, minecraft_version: project.minecraft_version,
-                mixin_compatibility: project.java_version)
+                mixin_compatibility: project.java_version,
+                icon_property: project.minecraft_version == '26.3' ? 'iconFile' : 'logoFile')
     }
     from(rootProject.file('adapters/fabric/src/main/resources')) {
         exclude 'fabric.mod.json', 'mewltiplayer.client.mixins.json'
