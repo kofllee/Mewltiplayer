@@ -45,6 +45,22 @@ final class MewShareCodesTest {
     }
 
     @Test
+    void globalResetRemovesLegacyInvitationFromMainMenu() throws Exception {
+        Path config = root.resolve("config");
+        Files.createDirectories(config);
+        Files.write(MewShareCodes.identity(MewSettings.GLOBAL, null, config), "identity".getBytes(StandardCharsets.UTF_8));
+        MewShareCodes.record(MewSettings.GLOBAL, null, config, "tcOld");
+        Files.write(config.resolve("global-invite.txt"), "tcLegacy".getBytes(StandardCharsets.UTF_8));
+
+        MewShareCodes.reset(MewSettings.GLOBAL, null, config);
+
+        assertFalse(Files.exists(config.resolve("global-identity.json")));
+        assertFalse(Files.exists(config.resolve("global-share-code.txt")));
+        assertFalse(Files.exists(config.resolve("global-invite.txt")));
+        assertNull(MewShareCodes.preview(MewSettings.GLOBAL, null, config));
+    }
+
+    @Test
     void parsesActualDerpMapRegionEntries() {
         String json = "{\"Regions\":{\"900\":{\"RegionID\":900,\"RegionCode\":\"test\",\"RegionName\":\"Sample\",\"Nodes\":[{\"Name\":\"example\"}]}}}";
         List<DerpRegions.Region> regions = DerpRegions.parse(json);

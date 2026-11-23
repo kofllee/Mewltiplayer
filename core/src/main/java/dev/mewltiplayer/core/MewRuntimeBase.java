@@ -47,6 +47,7 @@ public class MewRuntimeBase {
     private volatile boolean helperOnline;
     private volatile boolean closed;
     private volatile boolean onlineSharingEnabled;
+    private volatile boolean resetInProgress;
     private volatile boolean helperNeedsRestart;
 
     protected MewRuntimeBase(Path configDirectory) {
@@ -78,9 +79,11 @@ public class MewRuntimeBase {
     }
 
     public synchronized CompletableFuture<Void> resetShareCode(String mode, Path world, Path saves, boolean all) {
-        Path requestedIdentity = MewShareCodes.identity(mode, world, configDirectory());
-        if (sharing() && (all || (requestedIdentity != null && requestedIdentity.equals(sharedIdentity)))) {
-            onlineSharingEnabled = false;
+        // Resetting a code while sharing always restarts the active Tailcat session.
+        // The selected mode can differ from the mode used before this reset.
+        boolean restart = sharing() && onlineSharingEnabled;
+        if (restart) {
+            resetInProgress = true;
             stopShare();
         }
         CompletableFuture<Void> result = new CompletableFuture<>();
@@ -88,9 +91,12 @@ public class MewRuntimeBase {
             try {
                 if (all) MewShareCodes.resetAll(configDirectory(), saves);
                 else MewShareCodes.reset(mode, world, configDirectory());
+                if (restart) closeHelper();
                 result.complete(null);
             } catch (IOException error) {
                 result.completeExceptionally(error);
+            } finally {
+                resetInProgress = false;
             }
         });
         return result;
@@ -111,6 +117,10 @@ public class MewRuntimeBase {
 
     public boolean onlineSharingEnabled() {
         return onlineSharingEnabled;
+    }
+
+    public boolean resetInProgress() {
+        return resetInProgress;
     }
 
     public synchronized void setOnlineSharingEnabled(boolean enabled) {
@@ -302,6 +312,15 @@ public class MewRuntimeBase {
                 }
             });
         }
+    }
+
+    /** Restart the active share without disabling the world's Tailcat sharing preference. */
+    public synchronized void restartShare() {
+        if (!onlineSharingEnabled || !sharing()) return;
+        stopShare();
+        // The executor serializes stopping the old share, closing its helper,
+        // and the new share requested on the next client tick.
+        executor.execute(this::closeHelper);
     }
 
     public synchronized void stopJoin() {

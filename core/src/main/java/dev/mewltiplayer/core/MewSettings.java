@@ -24,6 +24,7 @@ public final class MewSettings {
     public static final String URL = "url";
 
     public String shareCodeMode = NEW;
+    public boolean showShareCodeInChat = true;
     public String derpMode = AUTO;
     public String derpMapJson = "";
     public String derpMapUrl = "";
@@ -40,6 +41,7 @@ public final class MewSettings {
                 result.derpMode = result.derpMapUrl == null || result.derpMapUrl.isEmpty() ? AUTO : URL;
             }
             if (!document.getAsJsonObject().has("shareCodeMode")) result.shareCodeMode = NEW;
+            if (!document.getAsJsonObject().has("showShareCodeInChat")) result.showShareCodeInChat = true;
             result.validate();
             return result;
         } catch (Exception error) {
@@ -89,7 +91,7 @@ public final class MewSettings {
         if (URL.equals(derpMode) && derpMapUrl.isEmpty()) {
             throw new IllegalArgumentException("Enter a DERP map URL");
         }
-        if (!derpMapUrl.isEmpty()) {
+        if (URL.equals(derpMode) && !derpMapUrl.isEmpty()) {
             URI uri = URI.create(derpMapUrl);
             if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null
                     || uri.getUserInfo() != null || uri.getFragment() != null) {
@@ -99,12 +101,13 @@ public final class MewSettings {
         if (MAP.equals(derpMode) && derpMapJson.isEmpty()) {
             throw new IllegalArgumentException("Paste a DERP map first");
         }
-        if (!derpMapJson.isEmpty()) DerpRegions.parse(derpMapJson);
+        if (MAP.equals(derpMode) && !derpMapJson.isEmpty()) DerpRegions.parse(derpMapJson);
     }
 
     public MewSettings copy() {
         MewSettings result = new MewSettings();
         result.shareCodeMode = shareCodeMode;
+        result.showShareCodeInChat = showShareCodeInChat;
         result.derpMode = derpMode;
         result.derpMapJson = derpMapJson;
         result.derpMapUrl = derpMapUrl;

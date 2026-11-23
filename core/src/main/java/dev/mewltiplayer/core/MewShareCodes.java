@@ -59,6 +59,8 @@ public final class MewShareCodes {
         Files.deleteIfExists(identity);
         Path code = codeFile(mode, world, config);
         if (code != null) Files.deleteIfExists(code);
+        // Remove the cached invitation written by older builds as well.
+        if (MewSettings.GLOBAL.equals(mode)) Files.deleteIfExists(config.resolve("global-invite.txt"));
     }
 
     public static void resetAll(Path config, Path saves) throws IOException {
