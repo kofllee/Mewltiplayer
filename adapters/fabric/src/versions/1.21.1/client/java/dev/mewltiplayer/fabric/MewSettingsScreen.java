@@ -6,6 +6,7 @@ import dev.mewltiplayer.core.MewSettings;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -39,6 +40,16 @@ public final class MewSettingsScreen extends Screen {
     private EditBoxWidget json;
     private boolean pending;
     private boolean confirmDerpChange;
+    private boolean confirmLiveSettings;
+    private boolean confirmNetworkChange;
+    private boolean regionMetadataRequested;
+    private long regionTextStart = System.nanoTime();
+    private ButtonWidget saveButton;
+    private ButtonWidget regionButton;
+    private ButtonWidget copyCodeButton;
+    private ButtonWidget resetCodeButton;
+    private TextFieldWidget shareCodeField;
+    private String shownShareCode;
 
     public MewSettingsScreen(Screen parent) {
         super(Text.translatable("mewltiplayer.settings.title"));
@@ -51,10 +62,109 @@ public final class MewSettingsScreen extends Screen {
         return Text.translatable("mewltiplayer.settings." + key, args);
     }
 
+
+    private boolean hasChanges() {
+        return !Objects.equals(initial.shareCodeMode, draft.shareCodeMode)
+                || initial.showShareCodeInChat != draft.showShareCodeInChat
+                || !Objects.equals(initial.derpMode, draft.derpMode)
+                || !Objects.equals(initial.derpMapUrl, draft.derpMapUrl.trim())
+                || !Objects.equals(initial.derpMapJson, draft.derpMapJson)
+                || initial.regionId != draft.regionId;
+    }
+
+    private void updateSaveButton() {
+        if (saveButton != null) saveButton.active = !pending && hasChanges();
+    }
+
+    private String codeText(String code) {
+        return code == null ? (MewSettings.WORLD.equals(draft.shareCodeMode) && world() == null
+                ? label("code_world_required").getString() : label("code_none").getString()) : code;
+    }
+
+    private boolean hasSavedIdentity() {
+        Path file = MewShareCodes.identity(draft.shareCodeMode, world(), MewRuntime.INSTANCE.configDirectory());
+        return file != null && java.nio.file.Files.isRegularFile(file);
+    }
+
+    private boolean canResetCode() {
+        MewRuntime runtime = MewRuntime.INSTANCE;
+        return !runtime.resetInProgress() && ((runtime.onlineSharingEnabled() && runtime.sharing())
+                || (!MewSettings.NEW.equals(draft.shareCodeMode) && hasSavedIdentity()));
+    }
+
+    public void refreshShareCode() {
+        if (!shareCodeTab || shareCodeField == null || confirmLiveSettings || confirmDerpChange || !confirm.isEmpty()) return;
+        String code = shareCodePreview();
+        if (!Objects.equals(code, shownShareCode)) {
+            shownShareCode = code;
+            shareCodeField.setText(codeText(code));
+            copyCodeButton.active = code != null;
+        }
+        resetCodeButton.active = canResetCode();
+    }
+
+    private void restoreRegionName() {
+        if (regionMetadataRequested || draft.regionId == 0 || !regions.isEmpty()) return;
+        regionMetadataRequested = true;
+        String source = MewSettings.MAP.equals(draft.derpMode) ? draft.derpMapJson
+                : MewSettings.URL.equals(draft.derpMode) ? draft.derpMapUrl : MewSettings.DEFAULT_MAP;
+        if (source.isBlank()) return;
+        if (MewSettings.MAP.equals(draft.derpMode)) {
+            try {
+                regions = DerpRegions.parse(source);
+                loadedSource = source;
+                regionTextStart = System.nanoTime();
+            } catch (RuntimeException ignored) { }
+            return;
+        }
+        new Thread(() -> {
+            List<DerpRegions.Region> loaded;
+            try { loaded = DerpRegions.load(source); }
+            catch (Exception ignored) { return; }
+            MinecraftClient.getInstance().execute(() -> {
+                String current = MewSettings.MAP.equals(draft.derpMode) ? draft.derpMapJson
+                        : MewSettings.URL.equals(draft.derpMode) ? draft.derpMapUrl : MewSettings.DEFAULT_MAP;
+                if (source.equals(current) && regions.isEmpty()) {
+                    regions = loaded;
+                    loadedSource = source;
+                    regionTextStart = System.nanoTime();
+                }
+            });
+        }, "mewltiplayer-region-name").start();
+    }
+
     @Override
     protected void init() {
         tabsLive = false;
         int x = width / 2 - 150;
+
+        saveButton = null;
+        shareCodeField = null;
+        copyCodeButton = null;
+        resetCodeButton = null;
+        regionButton = null;
+        if (confirmLiveSettings) {
+            addDrawableChild(ButtonWidget.builder(label("apply_restart"), w -> applyAndRestart())
+                    .dimensions(x, height / 2 + 22, 146, 20).build());
+            addDrawableChild(ButtonWidget.builder(Text.translatable("gui.cancel"), w -> cancelApply())
+                    .dimensions(x + 154, height / 2 + 22, 146, 20).build());
+            return;
+        }
+        if (confirmDerpChange) {
+            addDrawableChild(ButtonWidget.builder(label("confirm_save"), w -> confirmDerpSave())
+                    .dimensions(x, height / 2 + 22, 146, 20).build());
+            addDrawableChild(ButtonWidget.builder(Text.translatable("gui.cancel"), w -> cancelDerpSave())
+                    .dimensions(x + 154, height / 2 + 22, 146, 20).build());
+            return;
+        }
+        if (!confirm.isEmpty()) {
+            addDrawableChild(ButtonWidget.builder(label("reset"), w -> confirmReset())
+                    .dimensions(x, height / 2 + 22, 146, 20).build());
+            addDrawableChild(ButtonWidget.builder(Text.translatable("gui.cancel"), w -> cancelReset())
+                    .dimensions(x + 154, height / 2 + 22, 146, 20).build());
+            return;
+        }
+
         TabManager manager = new TabManager(w -> {}, w -> {});
         shareCodesTab = new GridScreenTab(label("tab.codes")) {
             @Override
@@ -85,10 +195,13 @@ public final class MewSettingsScreen extends Screen {
         if (shareCodeTab) renderShareCodes(x);
         else renderDerp(x);
         int footerY = height - 27;
-        ButtonWidget save = addDrawableChild(ButtonWidget.builder(label("save"), w -> save()).dimensions(x, footerY, 146, 20).build());
+        saveButton = addDrawableChild(ButtonWidget.builder(label("save"), w -> save()).dimensions(x, footerY, 146, 20).build());
+        updateSaveButton();
         ButtonWidget back = addDrawableChild(ButtonWidget.builder(Text.translatable("gui.back"), w -> close())
                 .dimensions(x + 154, footerY, 146, 20).build());
         if (regionExpanded && !shareCodeTab) addRegionList(x);
+        if (!shareCodeTab) restoreRegionName();
+
     }
 
     private void switchPage(boolean shareCode) {
@@ -100,44 +213,55 @@ public final class MewSettingsScreen extends Screen {
         clearAndInit();
     }
 
+
     private void renderShareCodes(int x) {
-        ButtonWidget shareCodeModeButton = addDrawableChild(ButtonWidget.builder(label("share_code_mode." + draft.shareCodeMode), w -> {
+        ButtonWidget mode = addDrawableChild(ButtonWidget.builder(label("share_code_mode." + draft.shareCodeMode), w -> {
             draft.shareCodeMode = MewSettings.NEW.equals(draft.shareCodeMode) ? MewSettings.WORLD
                     : MewSettings.WORLD.equals(draft.shareCodeMode) ? MewSettings.GLOBAL : MewSettings.NEW;
             confirm = "";
+            confirmLiveSettings = false;
             notice = "";
             clearAndInit();
-        }).dimensions(x, 78, 300, 20).build());
-        shareCodeModeButton.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("share_code_help." + draft.shareCodeMode)));
+        }).dimensions(x, 78, 200, 20).build());
+        mode.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("share_code_help." + draft.shareCodeMode)));
+        ButtonWidget codeChat = addDrawableChild(ButtonWidget.builder(label("show_code_chat." + (draft.showShareCodeInChat ? "on" : "off")), w -> {
+            draft.showShareCodeInChat = !draft.showShareCodeInChat;
+            notice = "";
+            clearAndInit();
+        }).dimensions(x + 208, 78, 92, 20).build());
+        codeChat.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("show_code_chat_tooltip")));
 
         String code = shareCodePreview();
-        TextFieldWidget preview = new TextFieldWidget(textRenderer, x, 127, 222, 20, label("code"));
-        preview.setMaxLength(8192);
-        preview.setText(code == null ? (MewSettings.WORLD.equals(draft.shareCodeMode) && world() == null
-                ? label("code_world_required").getString() : label("code_none").getString()) : code);
-        preview.setEditable(false);
-        addDrawableChild(preview);
-        ButtonWidget copy = addDrawableChild(ButtonWidget.builder(label("copy"), w ->
-                MinecraftClient.getInstance().keyboard.setClipboard(code))
-                .dimensions(x + 228, 127, 72, 20).build());
-        copy.active = code != null;
+        shownShareCode = code;
+        shareCodeField = new TextFieldWidget(textRenderer, x, 127, 222, 20, label("code"));
+        shareCodeField.setMaxLength(8192);
+        shareCodeField.setText(codeText(code));
+        shareCodeField.setEditable(false);
+        addDrawableChild(shareCodeField);
+        copyCodeButton = addDrawableChild(ButtonWidget.builder(label("copy"), w -> {
+            if (shownShareCode != null) MinecraftClient.getInstance().keyboard.setClipboard(shownShareCode);
+        }).dimensions(x + 228, 127, 72, 20).build());
+        copyCodeButton.active = code != null;
 
-        ButtonWidget reset = addDrawableChild(ButtonWidget.builder(label("reset"), w -> resetSelected())
+        resetCodeButton = addDrawableChild(ButtonWidget.builder(label("reset"), w -> resetSelected())
                 .dimensions(x, 159, 146, 20).build());
-        reset.active = !MewSettings.NEW.equals(draft.shareCodeMode)
-                && MewShareCodes.identity(draft.shareCodeMode, world(), MewRuntime.INSTANCE.configDirectory()) != null;
-        reset.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("tip.reset")));
-        ButtonWidget resetAll = addDrawableChild(ButtonWidget.builder(label("reset_all"), w -> resetAll())
+        resetCodeButton.active = canResetCode();
+        resetCodeButton.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("tip.reset")));
+        ButtonWidget all = addDrawableChild(ButtonWidget.builder(label("reset_all"), w -> resetAll())
                 .dimensions(x + 154, 159, 146, 20).build());
-        resetAll.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("tip.reset_all")));
+        all.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("tip.reset_all")));
     }
+
 
     private void renderDerp(int x) {
         ButtonWidget mode = addDrawableChild(ButtonWidget.builder(label("mode." + draft.derpMode), w -> {
+            if (pending) return;
             captureInput();
             draft.derpMode = MewSettings.AUTO.equals(draft.derpMode) ? MewSettings.MAP
                     : MewSettings.MAP.equals(draft.derpMode) ? MewSettings.URL : MewSettings.AUTO;
             draft.regionId = 0;
+            confirmLiveSettings = false;
+            regionMetadataRequested = false;
             loadedSource = "";
             regions.clear();
             regionExpanded = false;
@@ -159,6 +283,10 @@ public final class MewSettingsScreen extends Screen {
                 regions.clear();
                 draft.regionId = 0;
                 regionExpanded = false;
+                regionMetadataRequested = false;
+                updateSaveButton();
+                regionMetadataRequested = false;
+                updateSaveButton();
             });
             url.active = !regionExpanded;
             addDrawableChild(url);
@@ -180,19 +308,25 @@ public final class MewSettingsScreen extends Screen {
             addDrawableChild(json);
 
         }
-        ButtonWidget choose = addDrawableChild(ButtonWidget.builder(label("region_value", currentRegion()), w -> openRegions())
+        ButtonWidget choose = addDrawableChild(ButtonWidget.builder(Text.empty(), w -> openRegions())
                 .dimensions(x + 154, 78, 146, 20).build());
-        choose.active = !pending && (regionExpanded || !MewSettings.MAP.equals(draft.derpMode)
-                || !draft.derpMapJson.isEmpty());
+        regionButton = choose;
+        choose.active = !pending;
         choose.setTooltip(net.minecraft.client.gui.tooltip.Tooltip.of(label("tip.region")));
     }
 
     private String currentRegion() {
         if (draft.regionId == 0) return label("region_auto").getString();
         for (DerpRegions.Region r : regions) if (r.id == draft.regionId) return r.label();
-        return Integer.toString(draft.regionId);
+        return "Region " + draft.regionId;
     }
 
+    // The field label already says "Preferred region". Keep the button itself legible.
+    private static String shortRegionName(String fullName) {
+        int suffix = fullName.lastIndexOf(" (");
+        String name = suffix > 0 ? fullName.substring(0, suffix) : fullName;
+        return name.length() > 21 ? name.substring(0, 18) + "..." : name;
+    }
     private void addRegionList(int x) {
         RegionList list = new RegionList(x, 128, 300, Math.max(44, height - 174));
         list.addOption(0, label("region_auto").getString());
@@ -305,47 +439,58 @@ public final class MewSettingsScreen extends Screen {
         return MewClientCompat.worldDirectory();
     }
 
+
     private String shareCodePreview() {
         MewRuntime runtime = MewRuntime.INSTANCE;
-        if (runtime.isSharingMode(draft.shareCodeMode, world()) && runtime.shareCode() != null)
-            return runtime.shareCode();
+        if (runtime.resetInProgress()) return null;
+        if (runtime.onlineSharingEnabled() && MewClientCompat.published()) return runtime.shareCode();
         return MewShareCodes.preview(draft.shareCodeMode, world(), runtime.configDirectory());
     }
 
+
     private void resetSelected() {
-        if (!"selected".equals(confirm)) {
-            confirm = "selected";
-            notice = label("confirm_reset").getString();
-            return;
-        }
-        confirm = "";
-        notice = label("loading").getString();
-        MewRuntime.INSTANCE.resetShareCode(draft.shareCodeMode, world(), null, false)
-                .whenComplete((ignored, failure) -> MinecraftClient.getInstance().execute(() -> {
-                    if (failure == null) {
-                        notice = label("reset_done").getString();
-                        error = "";
-                    } else {
-                        notice = "";
-                        error = label("invalid").getString();
-                    }
-                    clearAndInit();
-                }));
+        confirm = "selected";
+        clearAndInit();
     }
 
     private void resetAll() {
-        if (!"all".equals(confirm)) {
-            confirm = "all";
-            notice = label("confirm_all").getString();
-            return;
+        confirm = "all";
+        clearAndInit();
+    }
+
+    private void cancelReset() {
+        confirm = "";
+        clearAndInit();
+    }
+
+    private void confirmReset() {
+        boolean all = "all".equals(confirm);
+        if (!all && !"selected".equals(confirm)) return;
+        MewRuntime runtime = MewRuntime.INSTANCE;
+        boolean activeTailcat = runtime.onlineSharingEnabled() && runtime.sharing();
+        String mode = draft.shareCodeMode;
+        if (activeTailcat && !runtime.settings().shareCodeMode.equals(mode)) {
+            MewSettings updated = runtime.settings();
+            updated.shareCodeMode = mode;
+            try {
+                runtime.saveSettings(updated);
+                initial.shareCodeMode = mode;
+            } catch (Exception exception) {
+                confirm = "";
+                error = exception.getMessage() == null ? label("invalid").getString() : exception.getMessage();
+                notice = "";
+                clearAndInit();
+                return;
+            }
         }
         confirm = "";
         notice = label("loading").getString();
-        MewRuntime.INSTANCE.resetShareCode(draft.shareCodeMode, world(),
-                MinecraftClient.getInstance().runDirectory.toPath().resolve("saves"), true)
+        Path saves = all ? MinecraftClient.getInstance().runDirectory.toPath().resolve("saves") : null;
+        runtime.resetShareCode(mode, world(), saves, all)
                 .whenComplete((ignored, failure) -> MinecraftClient.getInstance().execute(() -> {
                     if (failure == null) {
-                        notice = label("reset_done").getString();
+                        if (activeTailcat) MewClientCompat.message("mewltiplayer.chat.disconnected", false);
+                        notice = activeTailcat ? "" : label("reset_done_hint").getString();
                         error = "";
                     } else {
                         notice = "";
@@ -355,8 +500,10 @@ public final class MewSettingsScreen extends Screen {
                 }));
     }
 
+
     private void save() {
         captureInput();
+        if (pending || !hasChanges()) return;
         try {
             draft.validate();
             if (draft.regionId > 0 && (draft.regionId != initial.regionId
@@ -373,23 +520,82 @@ public final class MewSettingsScreen extends Screen {
                     || !initial.activeMapUrl().equals(draft.activeMapUrl())
                     || !initial.activeMapJson().equals(draft.activeMapJson());
             MewRuntime runtime = MewRuntime.INSTANCE;
-            boolean hasSavedCode = MewShareCodes.preview(MewSettings.WORLD, world(), runtime.configDirectory()) != null
-                    || MewShareCodes.preview(MewSettings.GLOBAL, world(), runtime.configDirectory()) != null;
-            if (networkChanged && hasSavedCode && !confirmDerpChange) {
-                confirmDerpChange = true;
+            boolean shareModeChanged = !initial.shareCodeMode.equals(draft.shareCodeMode);
+            if ((runtime.sharing() || runtime.joining()) && (networkChanged || shareModeChanged)) {
+                confirmLiveSettings = true;
+                confirmNetworkChange = networkChanged;
                 error = "";
-                notice = label("derp_warning").getString();
+                notice = "";
+                clearAndInit();
                 return;
             }
-            MewRuntime.INSTANCE.saveSettings(draft);
+            if (networkChanged) {
+                confirmDerpChange = true;
+                error = "";
+                notice = "";
+                clearAndInit();
+                return;
+            }
+            runtime.saveSettings(draft);
             close();
         } catch (Exception exception) {
             error = exception.getMessage() == null ? label("invalid").getString() : exception.getMessage();
         }
     }
 
+    private void cancelApply() {
+        confirmLiveSettings = false;
+        confirmNetworkChange = false;
+        clearAndInit();
+    }
+
+    private void cancelDerpSave() {
+        confirmDerpChange = false;
+        clearAndInit();
+    }
+
+    private void confirmDerpSave() {
+        try {
+            MewRuntime.INSTANCE.saveSettings(draft);
+            close();
+        } catch (Exception exception) {
+            confirmDerpChange = false;
+            error = exception.getMessage() == null ? label("invalid").getString() : exception.getMessage();
+            clearAndInit();
+        }
+    }
+
+    private void applyAndRestart() {
+        try {
+            draft.validate();
+            MewRuntime runtime = MewRuntime.INSTANCE;
+            boolean sharing = runtime.sharing() && runtime.onlineSharingEnabled();
+            boolean joining = runtime.joining();
+            runtime.saveSettings(draft);
+            if (sharing) runtime.restartShare();
+            if (joining) {
+                MewClientActions.disconnect();
+                if (MinecraftClient.getInstance().getNetworkHandler() != null) MinecraftClient.getInstance().getNetworkHandler().getConnection().disconnect(label("restart_disconnect"));
+            }
+            close();
+        } catch (Exception exception) {
+            confirmLiveSettings = false;
+            error = exception.getMessage() == null ? label("invalid").getString() : exception.getMessage();
+            clearAndInit();
+        }
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        refreshShareCode();
+    }
+
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (!confirm.isEmpty() && keyCode == 256) { cancelReset(); return true; }
+        if (confirmLiveSettings && keyCode == 256) { cancelApply(); return true; }
+        if (confirmDerpChange && keyCode == 256) { cancelDerpSave(); return true; }
         if (regionExpanded && keyCode == 256) {
             regionExpanded = false;
             clearAndInit();
@@ -400,10 +606,59 @@ public final class MewSettingsScreen extends Screen {
 
     @Override
     public void render(DrawContext graphics, int mouseX, int mouseY, float delta) {
-        renderBackground(graphics, mouseX, mouseY, delta);
+        renderBackgroundTexture(graphics, MENU_BACKGROUND_TEXTURE, 0, 0, 0f, 0f, width, height);
         super.render(graphics, mouseX, mouseY, delta);
+        if (confirmLiveSettings) {
+            graphics.drawCenteredTextWithShadow(textRenderer, label("restart_title"), width / 2, height / 2 - 30, 0xffffffff);
+            if (confirmNetworkChange) {
+                graphics.drawCenteredTextWithShadow(textRenderer, label("derp_code_warning"), width / 2, height / 2 - 12, 0xffffaa55);
+                graphics.drawCenteredTextWithShadow(textRenderer, label("restart_warning"), width / 2, height / 2 + 2, 0xffaaaaaa);
+            } else {
+                graphics.drawCenteredTextWithShadow(textRenderer, label("restart_warning"), width / 2, height / 2 - 10, 0xffaaaaaa);
+            }
+            return;
+        }
+        if (confirmDerpChange) {
+            graphics.drawCenteredTextWithShadow(textRenderer, label("derp_change_title"), width / 2, height / 2 - 30, 0xffffffff);
+            graphics.drawCenteredTextWithShadow(textRenderer, label("derp_code_warning"), width / 2, height / 2 - 10, 0xffffaa55);
+            return;
+        }
+        if (!confirm.isEmpty()) {
+            boolean all = "all".equals(confirm);
+            graphics.drawCenteredTextWithShadow(textRenderer, label(all ? "reset_all_title" : "reset_title"), width / 2, height / 2 - 38, 0xffffffff);
+            graphics.drawCenteredTextWithShadow(textRenderer, label(all ? "reset_all_warning" : "reset_warning"), width / 2, height / 2 - 18, 0xffaaaaaa);
+            if (MewRuntime.INSTANCE.sharing() && MewRuntime.INSTANCE.onlineSharingEnabled()) {
+                graphics.drawCenteredTextWithShadow(textRenderer, label("reset_active_warning"), width / 2, height / 2 - 5, 0xffaaaaaa);
+            }
+            return;
+        }
         graphics.drawItem(net.minecraft.item.Items.KNOWLEDGE_BOOK.getDefaultStack(), width / 2 - 174, height - 25);
         int x = width / 2 - 150;
+        if (!shareCodeTab && regionButton != null) {
+            String name = currentRegion();
+            int totalWidth = textRenderer.getWidth(name);
+            int room = regionButton.getWidth() - 12;
+            int overflow = Math.max(0, totalWidth - room);
+            int offset = 0;
+            if (overflow > 0) {
+                double seconds = (System.nanoTime() - regionTextStart) / 1_000_000_000.0;
+                double travel = overflow / 22.0;
+                double cycle = 2.0 * (travel + 1.2);
+                double phase = seconds % cycle;
+                if (phase < 1.2) offset = 0;
+                else if (phase < 1.2 + travel) offset = (int) Math.round((phase - 1.2) * 22.0);
+                else if (phase < 2.4 + travel) offset = overflow;
+                else offset = (int) Math.round(overflow - (phase - 2.4 - travel) * 22.0);
+            }
+            graphics.enableScissor(regionButton.getX() + 6, regionButton.getY() + 2,
+                    regionButton.getX() + regionButton.getWidth() - 6,
+                    regionButton.getY() + regionButton.getHeight() - 2);
+            graphics.drawTextWithShadow(textRenderer, name,
+                    regionButton.getX() + 6 + (overflow == 0 ? (room - totalWidth) / 2 : 0) - offset,
+                    regionButton.getY() + (regionButton.getHeight() - 8) / 2, 0xffffffff);
+            graphics.disableScissor();
+        }
+        if (regionExpanded && !shareCodeTab) addRegionList(x);
         graphics.drawCenteredTextWithShadow(textRenderer,Text.empty()
                 .append(Text.literal("\uE000").styled(style -> style.withFont(CAT_FONT)))
                 .append(Text.literal("  Mewltiplayer")), width / 2, 36, 0xffffffff);
@@ -412,7 +667,6 @@ public final class MewSettingsScreen extends Screen {
         } else {
             if (shareCodeTab) {
                 graphics.drawTextWithShadow(textRenderer, label("share_code_label"), x + 2, 64, 0xffaaaaaa);
-                graphics.drawTextWithShadow(textRenderer, label("code"), x + 2, 112, 0xffaaaaaa);
             } else {
                 graphics.drawTextWithShadow(textRenderer, label("derp_label"), x + 2, 64, 0xffaaaaaa);
                 graphics.drawTextWithShadow(textRenderer, label("region_label"), x + 156, 64, 0xffaaaaaa);
@@ -426,8 +680,24 @@ public final class MewSettingsScreen extends Screen {
                 }
             }
         }
-        if (!error.isEmpty()) graphics.drawCenteredTextWithShadow(textRenderer,Text.literal(error), width / 2, height - 39, 0xffff6666);
-        else if (!notice.isEmpty()) graphics.drawCenteredTextWithShadow(textRenderer,Text.literal(notice), width / 2, height - 39, 0xffaaaaaa);
+
+        MewRuntime runtime = MewRuntime.INSTANCE;
+        String message = !error.isEmpty() ? error : !notice.isEmpty() ? notice : "";
+        int color = !error.isEmpty() ? 0xffff6666 : 0xffaaaaaa;
+        if (message.isEmpty() && shareCodeTab && (runtime.sharing() || runtime.joining()
+                || (MewClientCompat.published() && runtime.onlineSharingEnabled()))) {
+            String key = runtime.resetInProgress() ? "session_restarting"
+                    : runtime.sharing() ? "session_sharing" : runtime.joining() ? "session_joining"
+                    : "session_starting";
+            message = label(key).getString();
+            color = "session_sharing".equals(key) ? 0xff55ff55 : 0xffaaaaaa;
+        }
+        if (!message.isEmpty()) {
+            String visible = textRenderer.getWidth(message) > 296
+                    ? textRenderer.trimToWidth(message, 286) + "…" : message;
+            graphics.drawTextWithShadow(textRenderer, visible, x + 2, height - 39, color);
+        }
+
     }
 
     @Override

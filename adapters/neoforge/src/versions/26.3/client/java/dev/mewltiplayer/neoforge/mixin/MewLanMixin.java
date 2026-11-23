@@ -49,8 +49,10 @@ public abstract class MewLanMixin extends Screen {
             try {
                 MewWorldSettings.setShareViaTailcat(MewClientCompat.worldDirectory(), next);
                 mew$enabled = next;
-                MewRuntime.INSTANCE.setOnlineSharingEnabled(
-                        next && server.getMultiplayerScope() == MinecraftServer.MultiplayerScope.LAN);
+                boolean wasSharing = MewRuntime.INSTANCE.sharing() || MewRuntime.INSTANCE.onlineSharingEnabled();
+                boolean lanOpen = server != null && server.getMultiplayerScope() == MinecraftServer.MultiplayerScope.LAN;
+                MewRuntime.INSTANCE.setOnlineSharingEnabled(next && lanOpen);
+                if (!next && wasSharing) MewClientCompat.message("mewltiplayer.chat.stopped", false);
                 button.setMessage(mew$label());
             } catch (IOException error) {
                 MewClientCompat.notice("mewltiplayer.settings.saveFailed");

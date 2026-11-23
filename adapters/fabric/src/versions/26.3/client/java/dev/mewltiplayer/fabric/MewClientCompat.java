@@ -96,7 +96,7 @@ public final class MewClientCompat {
 
     public static void publishedShareCode(String code) {
         message("mewltiplayer.chat.shared", true);
-        copyShareCode(code);
+        if (MewRuntime.INSTANCE.settings().showShareCodeInChat) copyShareCode(code);
     }
 
     public static void copyShareCode(String code) {

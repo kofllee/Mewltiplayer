@@ -48,14 +48,11 @@ public final class MewClientControl {
             MewClientCompat.notice("mewltiplayer.chat.noShareCode");
             return;
         }
-        runtime.stopShare();
         MewClientCompat.endSharing();
         Path world = MewClientCompat.worldDirectory();
         runtime.resetShareCode(runtime.settings().shareCodeMode, world, null, false)
                 .whenComplete((ignored, error) -> MewClientCompat.execute(() -> {
-                    if (error == null) {
-                        MewClientCompat.message("mewltiplayer.chat.replacing", false);
-                    } else {
+                    if (error != null) {
                         runtime.setOnlineSharingEnabled(false);
                         MewClientCompat.notice("mewltiplayer.chat.resetFailed");
                     }

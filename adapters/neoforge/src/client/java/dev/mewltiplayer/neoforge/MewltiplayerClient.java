@@ -65,7 +65,7 @@ public final class MewltiplayerClient {
             return;
         }
 
-        if (runtime.sharing() || System.nanoTime() < nextRetry) return;
+        if (runtime.resetInProgress() || runtime.sharing() || System.nanoTime() < nextRetry) return;
         if (!startingNotified) {
             MewClientCompat.beginSharing();
             startingNotified = true;
