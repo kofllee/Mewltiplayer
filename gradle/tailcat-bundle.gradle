@@ -44,16 +44,46 @@ tasks.register('bundleTailcat') {
 
 sourceSets.main.resources.srcDir(helperOutput)
 
+tasks.register('verifyThirdPartyNotices') {
+    inputs.files(rootProject.file('LICENSE'), rootProject.file('THIRD_PARTY_NOTICES.md'))
+    inputs.dir(rootProject.file('licenses'))
+    inputs.files(fileTree(helperSource) { include '**/*.go', 'go.mod', 'go.sum' })
+    doLast {
+        def notices = rootProject.file('THIRD_PARTY_NOTICES.md').getText('UTF-8')
+        helperPlatforms.each { platform, target ->
+            def builder = new ProcessBuilder(goCommand, 'list', '-deps', '-f',
+                    '{{if .Module}}{{.Module.Path}}|{{.Module.Version}}{{end}}', '.')
+            builder.directory(helperSource)
+            builder.environment().putAll([GOOS: target[0], GOARCH: target[1], CGO_ENABLED: '0'])
+            builder.redirectError(ProcessBuilder.Redirect.INHERIT)
+            def process = builder.start()
+            def modules = process.inputStream.getText('UTF-8').readLines().findAll { it.contains('|v') }.unique()
+            if (process.waitFor() != 0) {
+                throw new GradleException("Could not verify Go dependencies for ${platform}")
+            }
+            modules.each { module ->
+                def (path, version) = module.split('\\|', 2)
+                if (!notices.contains("| ${path} | ${version} |") ||
+                        !rootProject.file("licenses/go/${path}").isDirectory()) {
+                    throw new GradleException("Missing third-party notices for ${module}")
+                }
+            }
+        }
+    }
+}
+
 tasks.named('processResources') {
-    dependsOn tasks.named('bundleTailcat')
+    dependsOn tasks.named('bundleTailcat'), tasks.named('verifyThirdPartyNotices')
 }
 
 tasks.named('sourcesJar', Jar) {
-    dependsOn tasks.named('bundleTailcat')
+    dependsOn tasks.named('bundleTailcat'), tasks.named('verifyThirdPartyNotices')
     exclude 'mewltiplayer/native/**'
 }
 
-tasks.named('jar', Jar) {
+tasks.withType(Jar).configureEach {
+    from(rootProject.file('LICENSE')) { into 'META-INF' }
+    from(rootProject.file('THIRD_PARTY_NOTICES.md')) { into 'META-INF' }
     from(rootProject.file('licenses')) {
         into 'META-INF/licenses'
     }

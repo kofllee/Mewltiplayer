@@ -56,3 +56,7 @@ Fabric requires Fabric API. Mod Menu is optional.
 ## Build from source
 
 Use `dev.cmd <target> :core:test :platform:build` with `fabric-1.20.1`, `forge-1.20.1`, `fabric-1.21.1`, `neoforge-1.21.1`, `fabric-26.3`, or `neoforge-26.3`. Building requires appropriate Java toolchains, Gradle and Go for the bundled helper.
+
+## License
+
+Mewltiplayer is licensed under [MIT](LICENSE). Bundled components retain their original licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
