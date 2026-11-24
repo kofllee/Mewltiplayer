@@ -15,6 +15,7 @@ neoForge {
     mods {
         mewltiplayer {
             sourceSet sourceSets.main
+            sourceSet project(':core').sourceSets.main
         }
     }
 }
@@ -28,14 +29,11 @@ sourceSets.main {
 }
 
 dependencies {
-    implementation(project(':core')) {
+    compileOnly(project(':core')) {
         exclude group: 'com.google.code.gson', module: 'gson'
     }
-    if (project.minecraft_version == '1.21.1') {
-        additionalRuntimeClasspath(project(':core')) {
-            exclude group: 'com.google.code.gson', module: 'gson'
-        }
-    }
+    // Core classes are part of the mod in development as well as release.
+
 }
 
 tasks.named('processResources') {

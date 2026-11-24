@@ -15,6 +15,7 @@ legacyForge {
     mods {
         mewltiplayer {
             sourceSet sourceSets.main
+            sourceSet project(':core').sourceSets.main
         }
     }
 }
@@ -28,10 +29,7 @@ sourceSets.main {
 }
 
 dependencies {
-    implementation(project(':core')) {
-        exclude group: 'com.google.code.gson', module: 'gson'
-    }
-    additionalRuntimeClasspath(project(':core')) {
+    compileOnly(project(':core')) {
         exclude group: 'com.google.code.gson', module: 'gson'
     }
     annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
