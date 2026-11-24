@@ -22,7 +22,9 @@ public final class MewltiplayerClient {
 
     private MewltiplayerClient() {}
 
-    public static void register() {
+    public static void register(net.neoforged.fml.ModContainer container) {
+        container.registerExtensionPoint(net.neoforged.neoforge.client.gui.IConfigScreenFactory.class,
+                () -> (mod, parent) -> new MewSettingsScreen(parent));
         MewCommands.register();
         NeoForge.EVENT_BUS.addListener(INSTANCE::tick);
         NeoForge.EVENT_BUS.addListener(INSTANCE::connected);

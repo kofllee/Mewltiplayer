@@ -23,6 +23,8 @@ public final class MewltiplayerClient {
     private MewltiplayerClient() {}
 
     public static void register() {
+        net.minecraftforge.fml.ModLoadingContext.get().registerExtensionPoint(net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory.class,
+                () -> new net.minecraftforge.client.ConfigScreenHandler.ConfigScreenFactory((client, parent) -> new MewSettingsScreen(parent)));
         MewCommands.register();
         MinecraftForge.EVENT_BUS.addListener(INSTANCE::tick);
         MinecraftForge.EVENT_BUS.addListener(INSTANCE::connected);

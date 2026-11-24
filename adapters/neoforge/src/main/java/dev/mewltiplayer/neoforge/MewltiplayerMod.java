@@ -21,13 +21,13 @@ import java.util.concurrent.CompletionException;
 public final class MewltiplayerMod {
     private MinecraftServer runningServer;
 
-    public MewltiplayerMod(IEventBus modBus, Dist dist) {
+    public MewltiplayerMod(IEventBus modBus, Dist dist, net.neoforged.fml.ModContainer container) {
         MewltiplayerCore.initialize();
         MewDedicatedCommands.register();
         NeoForge.EVENT_BUS.addListener(this::started);
         NeoForge.EVENT_BUS.addListener(this::stopping);
         if (dist == Dist.CLIENT) {
-            MewltiplayerClient.register();
+            MewltiplayerClient.register(container);
         }
     }
 
