@@ -1,44 +1,58 @@
-# Mewltiplayer
+<div align="center">
+  <img src="docs/assets/cat-logo-wide.png" alt="Mewltiplayer cat logo" width="168">
 
-Minecraft Java multiplayer powered by [Tailcat](https://github.com/tailscale/tailcat), without port forwarding or a separately installed VPN.
+  <h1>Mewltiplayer</h1>
+
+  <p>Play Minecraft Java Edition with friends, without port forwarding or a separate VPN.</p>
+
+  <p>
+    <a href="docs/commands.md">Commands</a>
+    &middot;
+    <a href="docs/settings.md">Settings &amp; troubleshooting</a>
+  </p>
+</div>
+
+Mewltiplayer is an independent Minecraft mod built on [Tailcat](https://github.com/tailscale/tailcat). It handles multiplayer in Minecraft, while Tailcat uses free public infrastructure to help players find and connect to each other. Game traffic travels directly between players when possible, or through a DERP relay when it isn't. Even direct connections rely on that infrastructure to get started, so availability and performance can depend on services outside our control.
+
+Just share a world, copy a `tc...` code, and join through Minecraft's normal multiplayer menu. No separate Tailcat installation or account is needed.
+
+## Play together
+
+1. Install Mewltiplayer for the **same Minecraft version** on both computers.
+2. Open a world and choose **Open to LAN** (1.20.1 / 1.21.1) or **World Options** (26.3).
+3. Enable **Share via Tailcat** and start sharing.
+4. Copy the invitation and enter it under **Direct Connection** or **Add Server** on your friend's computer.
+
+**Using a VPN?** Tailcat may connect through a relay, have higher latency, or fail when a VPN interferes with its network traffic. Try without the VPN if connections are slow or fail; see [connection errors](docs/settings.md#connection-errors).
 
 ## Supported versions
 
 | Minecraft | Fabric | Forge | NeoForge |
-| --- | --- | --- | --- |
+| --- | :---: | :---: | :---: |
 | 1.20.1 | Yes | Yes | — |
 | 1.21.1 | Yes | — | Yes |
 | 26.3 | Yes | — | Yes |
 
-The players joining each other must use the same Minecraft version. Fabric requires Fabric API; Mod Menu is optional. The native Tailcat helper is bundled with the mod.
+Fabric requires Fabric API. Mod Menu is optional.
 
-## Playing together
+## Features
 
-Open a singleplayer world and use **Open to LAN** (1.20.1 / 1.21.1) or **World Options → Multiplayer** (26.3). Turn on **Share via Tailcat** and publish the world normally. Mewltiplayer displays a `tc...` invitation code in chat, with a clickable **Copy** action. Friends enter that code into Minecraft's usual **Direct Connection** or **Add Server** address field. Saved servers show their Minecraft status through encrypted on-demand probes.
+- Singleplayer world sharing and dedicated server support.
+- Saved `tc...` servers with real Minecraft status checks.
+- Direct P2P connections with encrypted DERP relay fallback.
+- Host `/mew status` reports each connected player's nickname, route and measured latency.
+- Fresh, per-world or global reusable invitations.
+- Optional custom DERP maps and region selection.
+- `/mew` and `/mewserver` commands.
 
-The Tailcat helper runs only while needed. By default, sharing generates a new invitation code each time. The settings screen also supports persistent codes per world or across worlds; either can be reset. DERP routing can be left automatic or configured with an HTTPS map URL or an editable JSON map and a preferred region.
+**Keep invitation codes private.** A valid code allows someone to attempt to connect to the corresponding shared server.
 
-## Commands and settings
+## Documentation
 
-`/mew` or `/mew status` shows connection information, including Direct P2P or DERP when known. `/mew settings` opens settings for clients. When hosting a singleplayer world, `/mew code`, `/mew start`, `/mew stop`, and `/mew reset` control sharing.
+- [Commands](docs/commands.md): client and dedicated server commands.
+- [Settings & errors](docs/settings.md): invitations, DERP, VPN issues and error codes.
+- [Tailcat](https://github.com/tailscale/tailcat): technical details of the underlying networking.
 
-Settings also open from the vanilla LAN/world-sharing screen and, on Fabric, from optional **Mod Menu**. Each world's Share via Tailcat choice is saved independently.
+## Build from source
 
-Dedicated servers have `/mew` console commands and `/mewserver` operator commands (status, code, start, stop, reset, settings). Server sharing is enabled by default and can be controlled through `config/mewltiplayer/server.json`; codes and identities persist across ordinary server restarts. Treat server logs and invitation codes as sensitive.
-
-## Development
-
-Choose a target per invocation; switching versions does not require changing source code or editing a global version setting:
-
-```powershell
-.\dev.cmd fabric-1.20.1 :platform:runClient
-.\dev.cmd forge-1.20.1 :platform:runClient
-.\dev.cmd fabric-1.21.1 :platform:runClient
-.\dev.cmd neoforge-1.21.1 :platform:runClient
-.\dev.cmd fabric-26.3 :platform:runClient
-.\dev.cmd neoforge-26.3 :platform:runClient
-```
-
-Replace `:platform:runClient` with `:platform:runServer` to run a dedicated development server, or with `:core:test :platform:classes` to compile and test without producing a mod JAR. `.\dev.cmd fabric-26.3 :showTarget` lists all available targets.
-
-The build uses JDK 25, Java 17/21 toolchains for older versions, Gradle Wrapper, and Go 1.27 for the bundled helper. Minecraft requires Java 17 for 1.20.1, Java 21 for 1.21.1, and Java 25 for 26.3.
+Use `dev.cmd <target> :core:test :platform:build` with `fabric-1.20.1`, `forge-1.20.1`, `fabric-1.21.1`, `neoforge-1.21.1`, `fabric-26.3`, or `neoforge-26.3`. Building requires appropriate Java toolchains, Gradle and Go for the bundled helper.
