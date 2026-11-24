@@ -1,13 +1,16 @@
 modLoader="javafml"
 loaderVersion="[1,)"
 license="MIT"
+issueTrackerURL="https://github.com/kofllee/Mewltiplayer/issues"
 
 [[mods]]
 modId="mewltiplayer"
 version="${version}"
 displayName="Mewltiplayer"
-authors="Mewltiplayer contributors"
-description="Share Minecraft worlds with friends using Tailcat-powered connections."
+authors="apathee"
+credits="Powered by Tailcat"
+displayURL="https://github.com/kofllee/Mewltiplayer"
+description="Play Minecraft with friends without port forwarding or a separate VPN. Powered by Tailcat."
 ${icon_property}="assets/mewltiplayer/icon.png"
 
 [[mixins]]

@@ -4,9 +4,14 @@
   "version": "${version}",
   "name": "Mewltiplayer",
   "icon": "assets/mewltiplayer/icon.png",
-  "description": "Share Minecraft worlds with friends using Tailcat-powered connections.",
-  "authors": ["Mewltiplayer contributors"],
+  "description": "Play Minecraft with friends without port forwarding or a separate VPN. Powered by Tailcat.",
+  "authors": ["apathee"],
   "license": "MIT",
+  "contact": {
+    "homepage": "https://github.com/kofllee/Mewltiplayer",
+    "sources": "https://github.com/kofllee/Mewltiplayer",
+    "issues": "https://github.com/kofllee/Mewltiplayer/issues"
+  },
   "environment": "*",
   "mixins": [
     {"config": "mewltiplayer.client.mixins.json", "environment": "client"}
