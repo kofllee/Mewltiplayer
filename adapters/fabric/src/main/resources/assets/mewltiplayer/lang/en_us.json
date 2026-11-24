@@ -120,6 +120,8 @@
   "mewltiplayer.settings.tip.region": "Preferred server region. It can affect latency (Auto is recommended).",
   "mewltiplayer.chat.connectionDirect": "Connected via Direct P2P",
   "mewltiplayer.chat.connectionRelay": "Connected via DERP (%s)",
+  "mewltiplayer.chat.reconnectionDirect": "Reconnected via Direct P2P",
+  "mewltiplayer.chat.reconnectionRelay": "Reconnected via DERP (%s)",
   "mewltiplayer.chat.connectionConnected": "Connected",
   "mewltiplayer.chat.connectionChecking": "(Checking route)",
   "mewltiplayer.chat.alreadyRunning": "Tailcat is already running",

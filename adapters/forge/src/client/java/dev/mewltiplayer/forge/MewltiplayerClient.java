@@ -50,7 +50,7 @@ public final class MewltiplayerClient {
             NetworkStatus network = runtime.network();
             if (network != null && (network.mode() == ConnectionMode.DIRECT
                     || network.mode() == ConnectionMode.RELAY) && network.mode() != lastRoute) {
-                MewClientControl.route(network);
+                MewClientControl.route(network, lastRoute != null);
                 lastRoute = network.mode();
             }
         }
@@ -110,6 +110,7 @@ public final class MewltiplayerClient {
     }
 
     private void disconnected(ClientPlayerNetworkEvent.LoggingOut event) {
+        if (MewClientActions.forwardingConnection()) return;
         lastRoute = null;
         MewClientActions.disconnect();
     }

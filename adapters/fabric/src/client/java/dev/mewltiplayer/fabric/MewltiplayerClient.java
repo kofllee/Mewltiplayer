@@ -48,7 +48,7 @@ public final class MewltiplayerClient implements ClientModInitializer {
                 if (network != null && (network.mode() == ConnectionMode.DIRECT
                         || network.mode() == ConnectionMode.RELAY)
                         && network.mode() != lastRoute) {
-                    MewClientControl.route(network);
+                    MewClientControl.route(network, lastRoute != null);
                     lastRoute = network.mode();
                 }
             }

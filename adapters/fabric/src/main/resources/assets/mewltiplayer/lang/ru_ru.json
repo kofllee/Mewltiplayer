@@ -120,6 +120,8 @@
   "mewltiplayer.settings.tip.region": "Предпочтительный регион серверов. Может влиять на задержку (рекомендуется Авто).",
   "mewltiplayer.chat.connectionDirect": "Подключено через Direct P2P",
   "mewltiplayer.chat.connectionRelay": "Подключено через DERP (%s)",
+  "mewltiplayer.chat.reconnectionDirect": "\u041f\u0435\u0440\u0435\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u043e \u0447\u0435\u0440\u0435\u0437 Direct P2P",
+  "mewltiplayer.chat.reconnectionRelay": "\u041f\u0435\u0440\u0435\u043f\u043e\u0434\u043a\u043b\u044e\u0447\u0435\u043d\u043e \u0447\u0435\u0440\u0435\u0437 DERP (%s)",
   "mewltiplayer.chat.connectionConnected": "Подключено",
   "mewltiplayer.chat.connectionChecking": "(Проверка маршрута)",
   "mewltiplayer.chat.alreadyRunning": "Tailcat уже запущен",

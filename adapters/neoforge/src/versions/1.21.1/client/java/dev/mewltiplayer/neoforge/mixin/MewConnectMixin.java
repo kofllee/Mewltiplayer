@@ -34,7 +34,7 @@ public abstract class MewConnectMixin {
             }
             ServerData tunnel = new ServerData(serverData.name, ShareCode.localAddress(port), ServerData.Type.LAN);
             tunnel.setResourcePackStatus(serverData.getResourcePackStatus());
-            ConnectScreen.startConnecting(parent, client, new ServerAddress("127.0.0.1", port), tunnel, quickPlay, null);
+            MewClientActions.forwardConnection(() -> ConnectScreen.startConnecting(parent, client, new ServerAddress("127.0.0.1", port), tunnel, quickPlay, null));
         }, error -> {
             if (client.screen == screen) {
                 screen.fail(error);

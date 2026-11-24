@@ -9,6 +9,7 @@ import java.util.function.IntConsumer;
 public final class MewClientActions {
     private static final AtomicLong connectionId = new AtomicLong();
 
+    private static boolean forwardingConnection;
     private MewClientActions() {
     }
 
@@ -26,6 +27,19 @@ public final class MewClientActions {
                         connected.accept(info.localEndpoint().getPort());
                     }
                 }));
+    }
+
+    public static void forwardConnection(Runnable connect) {
+        forwardingConnection = true;
+        try {
+            connect.run();
+        } finally {
+            forwardingConnection = false;
+        }
+    }
+
+    public static boolean forwardingConnection() {
+        return forwardingConnection;
     }
 
     public static void disconnect() {

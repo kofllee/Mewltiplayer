@@ -78,12 +78,16 @@ public final class MewClientControl {
     }
 
     public static void route(NetworkStatus network) {
+        route(network, false);
+    }
+
+    public static void route(NetworkStatus network, boolean reconnected) {
         if (network == null || network.mode() == ConnectionMode.CONNECTED) {
             MewClientCompat.checkingRoute();
         } else if (network.mode() == ConnectionMode.DIRECT) {
-            MewClientCompat.connectionStatus("mewltiplayer.chat.connectionDirect", network.latencyMs());
+            MewClientCompat.connectionStatus(reconnected ? "mewltiplayer.chat.reconnectionDirect" : "mewltiplayer.chat.connectionDirect", network.latencyMs());
         } else if (network.mode() == ConnectionMode.RELAY) {
-            MewClientCompat.connectionStatus("mewltiplayer.chat.connectionRelay", network.latencyMs(),
+            MewClientCompat.connectionStatus(reconnected ? "mewltiplayer.chat.reconnectionRelay" : "mewltiplayer.chat.connectionRelay", network.latencyMs(),
                     network.relay().isEmpty() ? "auto" : network.relay());
         } else {
             MewClientCompat.checkingRoute();
