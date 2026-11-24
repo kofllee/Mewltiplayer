@@ -16,6 +16,7 @@ import (
 )
 
 const tunnelPort = 25565
+const telemetryPort = 25566
 const maxConnections = 32
 
 type sessions struct {
@@ -24,9 +25,12 @@ type sessions struct {
 }
 
 type sharedServer struct {
-	server    *tailcat.Server
-	pipes     *pipeGroup
-	mapServer *httptest.Server
+	server       *tailcat.Server
+	pipes        *pipeGroup
+	mapServer    *httptest.Server
+	peerMu       sync.Mutex
+	activePeers  map[string]int
+	measurements map[string]peerMeasurement
 }
 
 type joinedServer struct {
@@ -164,20 +168,32 @@ func (s *sessions) startShareMap(port int, derpMapURL, derpMapJSON string, regio
 		}
 	}
 	pipes := newPipeGroup()
-	server := &tailcat.Server{
+	shared := &sharedServer{pipes: pipes, mapServer: mapServer, activePeers: make(map[string]int), measurements: make(map[string]peerMeasurement)}
+	var server *tailcat.Server
+	server = &tailcat.Server{
 		Key:          private,
 		PresharedKey: preshared,
 		DERPMapURL:   derpMapURL,
 		RegionID:     tailcfg.DERPRegionID(regionID),
 		Logf:         func(string, ...any) {},
 		OnTCP: func(remotePort uint16) func(net.Conn) {
+			if remotePort == telemetryPort {
+				return func(conn net.Conn) { go shared.receiveTelemetry(conn) }
+			}
 			if remotePort != tunnelPort {
 				return nil
 			}
 			return func(conn net.Conn) {
-				go pipes.proxy(conn, func() (net.Conn, error) {
-					return net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), 5*time.Second)
-				})
+				go func() {
+					peer, ok := server.PeerKey(conn.RemoteAddr())
+					if ok {
+						shared.track(peer.String(), 1)
+						defer shared.track(peer.String(), -1)
+					}
+					pipes.proxy(conn, func() (net.Conn, error) {
+						return net.DialTimeout("tcp", net.JoinHostPort("127.0.0.1", strconv.Itoa(port)), 5*time.Second)
+					})
+				}()
 			}
 		},
 	}
@@ -195,7 +211,8 @@ func (s *sessions) startShareMap(port int, derpMapURL, derpMapJSON string, regio
 			return "", "identity_unavailable"
 		}
 	}
-	s.share = &sharedServer{server: server, pipes: pipes, mapServer: mapServer}
+	shared.server = server
+	s.share = shared
 	mapServer = nil
 	return string(code), ""
 }
@@ -252,7 +269,7 @@ func (j *joinedServer) accept(ctx context.Context) {
 	}
 }
 
-func (s *sessions) probe() (string, int64, string, string) {
+func (s *sessions) probe(playerName string) (string, int64, string, string) {
 	if s.join == nil {
 		return "", 0, "", "not_joined"
 	}
@@ -269,7 +286,9 @@ func (s *sessions) probe() (string, int64, string, string) {
 	} else if result.DERPRegionID > 0 {
 		mode = "relay"
 	}
-	return mode, int64(result.LatencySeconds * 1000), result.DERPRegionCode, ""
+	latency := int64(result.LatencySeconds * 1000)
+	go s.join.reportTelemetry(playerName, latency)
+	return mode, latency, result.DERPRegionCode, ""
 }
 
 func (s *sessions) stopShare() {

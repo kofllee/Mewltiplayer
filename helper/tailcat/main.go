@@ -23,22 +23,24 @@ type request struct {
 	DERPMapJSON     string `json:"derpMapJson,omitempty"`
 	RegionID        int    `json:"regionId,omitempty"`
 	IdentityFile    string `json:"identityFile,omitempty"`
+	PlayerName      string `json:"playerName,omitempty"`
 }
 
 type response struct {
-	ID              string `json:"id,omitempty"`
-	OK              bool   `json:"ok"`
-	ProtocolVersion int    `json:"protocolVersion"`
-	HelperVersion   string `json:"helperVersion,omitempty"`
-	Code            string `json:"code,omitempty"`
-	LocalPort       int    `json:"localPort,omitempty"`
-	Connections     int    `json:"connections,omitempty"`
-	Sharing         bool   `json:"sharing,omitempty"`
-	Joining         bool   `json:"joining,omitempty"`
-	Mode            string `json:"mode,omitempty"`
-	LatencyMs       int64  `json:"latencyMs,omitempty"`
-	Relay           string `json:"relay,omitempty"`
-	Error           string `json:"error,omitempty"`
+	ID              string     `json:"id,omitempty"`
+	OK              bool       `json:"ok"`
+	ProtocolVersion int        `json:"protocolVersion"`
+	HelperVersion   string     `json:"helperVersion,omitempty"`
+	Code            string     `json:"code,omitempty"`
+	LocalPort       int        `json:"localPort,omitempty"`
+	Connections     int        `json:"connections,omitempty"`
+	Sharing         bool       `json:"sharing,omitempty"`
+	Joining         bool       `json:"joining,omitempty"`
+	Mode            string     `json:"mode,omitempty"`
+	LatencyMs       int64      `json:"latencyMs,omitempty"`
+	Relay           string     `json:"relay,omitempty"`
+	Peers           []peerInfo `json:"peers,omitempty"`
+	Error           string     `json:"error,omitempty"`
 }
 
 func main() {
@@ -109,7 +111,7 @@ func (s *sessions) handle(req request) response {
 		}
 		return response{OK: true, LocalPort: port}
 	case "probe":
-		mode, latency, relay, err := s.probe()
+		mode, latency, relay, err := s.probe(req.PlayerName)
 		if err != "" {
 			return response{Error: err}
 		}
@@ -124,6 +126,7 @@ func (s *sessions) handle(req request) response {
 		result := response{OK: true, Sharing: s.share != nil, Joining: s.join != nil}
 		if s.share != nil {
 			result.Connections = s.share.pipes.count()
+			result.Peers = s.share.peerStatuses()
 		}
 		if s.join != nil {
 			result.LocalPort = s.join.listener.Addr().(*net.TCPAddr).Port

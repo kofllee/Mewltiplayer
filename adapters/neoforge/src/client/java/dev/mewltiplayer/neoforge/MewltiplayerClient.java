@@ -45,6 +45,7 @@ public final class MewltiplayerClient {
         wasPublished = published;
 
         if (runtime.joining() && Minecraft.getInstance().player != null) {
+            runtime.setLocalPlayerName(Minecraft.getInstance().player.getName().getString());
             NetworkStatus network = runtime.network();
             if (network != null && (network.mode() == ConnectionMode.DIRECT
                     || network.mode() == ConnectionMode.RELAY) && network.mode() != lastRoute) {

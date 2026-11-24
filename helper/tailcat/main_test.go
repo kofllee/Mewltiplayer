@@ -61,6 +61,19 @@ func TestProtocol(t *testing.T) {
 	}
 }
 
+func TestPlayerNames(t *testing.T) {
+	for _, name := range []string{"Steve", "Player346", "a_b"} {
+		if !validPlayerName(name) {
+			t.Fatalf("valid nickname rejected: %s", name)
+		}
+	}
+	for _, name := range []string{"", "has space", "extra-long-username", "invalid\nname"} {
+		if validPlayerName(name) {
+			t.Fatalf("invalid nickname accepted: %q", name)
+		}
+	}
+}
+
 func TestValidation(t *testing.T) {
 	s := &sessions{}
 	for _, test := range []struct {
@@ -133,9 +146,26 @@ func TestTCPBridge(t *testing.T) {
 	if string(result) != "hello" {
 		t.Fatalf("unexpected response: %q", result)
 	}
-	mode, latency, _, errCode := guest.probe()
+	mode, latency, _, errCode := guest.probe("TestGuest")
 	if errCode != "" || (mode != "direct" && mode != "relay" && mode != "connected") || latency < 0 {
 		t.Fatalf("unexpected network probe: mode=%s latency=%d error=%s", mode, latency, errCode)
+	}
+	deadline := time.Now().Add(8 * time.Second)
+	found := false
+	for time.Now().Before(deadline) {
+		for _, peer := range host.share.peerStatuses() {
+			if peer.ID == "TestGuest" && peer.LatencyMs != nil && *peer.LatencyMs >= 0 {
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	if !found {
+		t.Fatal("host did not receive the guest's real nickname and measured latency")
 	}
 	guest.stopJoin()
 	host.stopShare()

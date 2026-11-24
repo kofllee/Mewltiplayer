@@ -53,8 +53,10 @@ public final class MewDedicatedControl {
         MewRuntime runtime = MewRuntime.INSTANCE;
         BridgeStatus current = runtime.status();
         if (runtime.shareCode() != null) {
-            return "World shared (" + current.connections() + " connections)"
-                    + "\nHelper " + (runtime.helperOnline() ? "running" : "stopped");
+            StringBuilder details = new StringBuilder("World shared (" + current.connections() + " connections)")
+                    .append("\nHelper ").append(runtime.helperOnline() ? "running" : "stopped");
+            for (BridgeStatus.Peer peer : current.peers()) details.append("\n").append(peer.description());
+            return details.toString();
         }
         if (runtime.sharing()) return "Opening world through Tailcat";
         return "Tailcat is not running";

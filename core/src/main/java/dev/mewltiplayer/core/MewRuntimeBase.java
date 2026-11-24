@@ -44,6 +44,7 @@ public class MewRuntimeBase {
     private String lastError = "";
     private volatile BridgeStatus bridgeStatus = new BridgeStatus(false, false, 0, 0);
     private volatile NetworkStatus networkStatus;
+    private volatile String localPlayerName = "";
     private volatile boolean helperOnline;
     private volatile boolean closed;
     private volatile boolean onlineSharingEnabled;
@@ -149,6 +150,10 @@ public class MewRuntimeBase {
         return networkStatus;
     }
 
+    public void setLocalPlayerName(String name) {
+        localPlayerName = name == null ? "" : name;
+    }
+
     public boolean helperOnline() {
         return helperOnline;
     }
@@ -189,6 +194,7 @@ public class MewRuntimeBase {
         try {
             bridgeStatus = helper.status().toCompletableFuture().get(12, TimeUnit.SECONDS);
             if (joining() && bridgeStatus.isJoining()) {
+                helper.setPlayerName(localPlayerName);
                 networkStatus = helper.probe().toCompletableFuture().get(10, TimeUnit.SECONDS);
             } else {
                 networkStatus = null;

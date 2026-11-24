@@ -43,6 +43,7 @@ public final class MewltiplayerClient implements ClientModInitializer {
 
             // A route is determined by the Tailcat probe after the Minecraft login succeeds.
             if (runtime.joining() && client.player != null) {
+                runtime.setLocalPlayerName(client.player.getName().getString());
                 NetworkStatus network = runtime.network();
                 if (network != null && (network.mode() == ConnectionMode.DIRECT
                         || network.mode() == ConnectionMode.RELAY)

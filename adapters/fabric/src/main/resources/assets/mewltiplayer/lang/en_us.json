@@ -26,6 +26,7 @@
   "mewltiplayer.chat.shared": "World is now shared through Tailcat",
   "mewltiplayer.chat.joined": "Connected through Tailcat",
   "mewltiplayer.chat.hostStatus": "World shared (%s connections)",
+  "mewltiplayer.chat.peerStatus": "%s",
   "mewltiplayer.chat.guestStatus": "Connected through Tailcat",
   "mewltiplayer.chat.routeDirect": "Direct P2P  %s ms",
   "mewltiplayer.chat.routeRelay": "DERP %s  %s ms",

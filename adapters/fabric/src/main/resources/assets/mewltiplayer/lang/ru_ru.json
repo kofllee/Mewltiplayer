@@ -25,6 +25,7 @@
   "mewltiplayer.chat.opening": "Открываем мир через Tailcat",
   "mewltiplayer.chat.shared": "Мир открыт через Tailcat",
   "mewltiplayer.chat.joined": "Подключено через Tailcat",
+  "mewltiplayer.chat.peerStatus": "%s",
   "mewltiplayer.chat.hostStatus": "Мир открыт (%s соединений)",
   "mewltiplayer.chat.guestStatus": "Подключено через Tailcat",
   "mewltiplayer.chat.routeDirect": "Прямое соединение P2P  %s мс",

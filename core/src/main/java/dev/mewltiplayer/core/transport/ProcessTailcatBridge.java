@@ -1,6 +1,7 @@
 package dev.mewltiplayer.core.transport;
 
 import com.google.gson.JsonObject;
+import com.google.gson.JsonArray;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -19,6 +20,7 @@ public final class ProcessTailcatBridge implements TailcatBridge {
     private final String derpMapUrl;
     private final String derpMapJson;
     private final int regionId;
+    private volatile String playerName = "";
 
     public ProcessTailcatBridge(Path helperExecutable) throws IOException {
         this(helperExecutable, "", "", 0);
@@ -102,17 +104,33 @@ public final class ProcessTailcatBridge implements TailcatBridge {
 
     @Override
     public CompletionStage<BridgeStatus> status() {
-        return process.request("status", null, 10).thenApply(reply ->
-                new BridgeStatus(
+        return process.request("status", null, 10).thenApply(reply -> {
+            java.util.List<BridgeStatus.Peer> peers = new java.util.ArrayList<>();
+            if (reply.has("peers") && reply.get("peers").isJsonArray()) {
+                JsonArray array = reply.getAsJsonArray("peers");
+                for (com.google.gson.JsonElement element : array) {
+                    JsonObject peer = element.getAsJsonObject();
+                    peers.add(new BridgeStatus.Peer(
+                            peer.get("id").getAsString(),
+                            peer.get("mode").getAsString(),
+                            peer.has("latencyMs") ? peer.get("latencyMs").getAsLong() : -1,
+                            peer.has("relay") ? peer.get("relay").getAsString() : ""));
+                }
+            }
+            return new BridgeStatus(
                         reply.has("sharing") && reply.get("sharing").getAsBoolean(),
                         reply.has("joining") && reply.get("joining").getAsBoolean(),
                         reply.has("localPort") ? reply.get("localPort").getAsInt() : 0,
-                        reply.has("connections") ? reply.get("connections").getAsInt() : 0));
+                        reply.has("connections") ? reply.get("connections").getAsInt() : 0,
+                        peers);
+        });
     }
 
     @Override
     public CompletionStage<NetworkStatus> probe() {
-        return process.request("probe", null, 10).thenApply(reply -> {
+        JsonObject args = new JsonObject();
+        args.addProperty("playerName", playerName);
+        return process.request("probe", args, 10).thenApply(reply -> {
             String path = reply.get("mode").getAsString();
             ConnectionMode mode = ConnectionMode.CONNECTED;
             if ("direct".equals(path)) {
@@ -124,6 +142,10 @@ public final class ProcessTailcatBridge implements TailcatBridge {
             String relay = reply.has("relay") ? reply.get("relay").getAsString() : "";
             return new NetworkStatus(mode, latencyMs, relay);
         });
+    }
+
+    public void setPlayerName(String name) {
+        playerName = name == null ? "" : name;
     }
 
     public boolean isAlive() {

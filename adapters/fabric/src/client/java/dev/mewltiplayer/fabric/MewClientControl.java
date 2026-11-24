@@ -65,6 +65,9 @@ public final class MewClientControl {
         BridgeStatus bridge = runtime.status();
         if (runtime.shareCode() != null) {
             MewClientCompat.message("mewltiplayer.chat.hostStatus", true, bridge.connections());
+            for (BridgeStatus.Peer peer : bridge.peers()) {
+                MewClientCompat.message("mewltiplayer.chat.peerStatus", false, peer.description());
+            }
         } else if (runtime.sharing()) {
             MewClientCompat.message("mewltiplayer.chat.opening", false);
         } else if (runtime.joining()) {
